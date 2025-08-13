@@ -1,5 +1,5 @@
 ---
-description: Always read Jira to get a list of the tasks, and to see if there is an update in the task you are about to work on, once you have sleected a task you must always move it to in progress
+description: When working with Jira, always read Jira to get a list of the tasks, and to see if there is an update in the task you are about to work on, remember to always keep jira notes updated with your progress and move tickets to its correct status
 globs:
 alwaysApply: false
 ---
