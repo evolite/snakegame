@@ -48,7 +48,8 @@ class GameLoop:
         """Start the game loop."""
         self.running = True
         self.last_frame_time = time.time()
-        self._run_loop()
+        # Don't run the loop here - let the main game loop call update methods
+        # self._run_loop()  # This was causing the conflict
     
     def stop(self) -> None:
         """Stop the game loop."""
@@ -77,6 +78,62 @@ class GameLoop:
     def set_post_update_callback(self, callback: Callable[[float], None]) -> None:
         """Set the post-update callback function."""
         self.post_update_callback = callback
+    
+    def update(self) -> None:
+        """Update the game loop (called from main game loop)."""
+        if not self.running:
+            return
+            
+        # Calculate delta time
+        current_time = time.time()
+        self.delta_time = current_time - self.last_frame_time
+        self.last_frame_time = current_time
+        
+        # Cap delta time to prevent spiral of death
+        if self.delta_time > 0.1:  # Max 100ms
+            self.delta_time = 0.1
+        
+        # Update FPS counter
+        self._update_fps_counter()
+        
+        if not self.paused:
+            # Pre-update phase
+            if self.pre_update_callback:
+                self.pre_update_callback(self.delta_time)
+            
+            # Update game logic
+            self.game_logic.update(self.delta_time)
+            
+            # Update callback
+            if self.update_callback:
+                self.update_callback(self.delta_time)
+            
+            # Post-update phase
+            if self.post_update_callback:
+                self.post_update_callback(self.delta_time)
+        
+        # Render callback
+        if self.render_callback:
+            self.render_callback()
+        
+        # Frame rate limiting
+        self._limit_frame_rate()
+        
+        # Increment frame counter
+        self.frame_count += 1
+    
+    def physics_update(self) -> None:
+        """Update physics at fixed timestep (called from main game loop)."""
+        if not self.running or self.paused:
+            return
+            
+        # Update physics timer
+        self.physics_timer += self.delta_time
+        
+        # Run physics updates at fixed timestep
+        while self.physics_timer >= self.physics_frame_time:
+            self.game_logic.physics_update(self.physics_frame_time)
+            self.physics_timer -= self.physics_frame_time
     
     def _run_loop(self) -> None:
         """Main game loop."""
