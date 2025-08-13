@@ -38,49 +38,73 @@ class SnakeGame:
         self.running = False
         self.paused = False
         
-        # Initialize Pygame
-        pygame.init()
-        
-        # Initialize game components
-        self.display_manager = DisplayManager(config)
-        
-        self.game_logic = GameLogic(config)
-        self.input_manager = InputManager(self.display_manager)
-        self.game_controller = GameController(self.game_logic, self.input_manager)
-        self.menu_manager = MenuManager(self.input_manager)
-        
-        # Initialize renderers
-        self.game_renderer = GameRenderer(self.display_manager)
-        
-        # Initialize audio manager
-        self.audio_manager = AudioManager()
-        
-        # Register audio callbacks with game logic
-        self.game_logic.register_audio_callback("food_collected", 
-            lambda: self.audio_manager.play_sound_effect(SoundEffect.FOOD_COLLECTION))
-        self.game_logic.register_audio_callback("collision", 
-            lambda: self.audio_manager.play_sound_effect(SoundEffect.COLLISION))
-        
-        # Initialize game loop
-        self.game_loop = FixedTimestepGameLoop(
-            game_logic=self.game_logic,
-            target_fps=60,  # Default target FPS
-            physics_fps=10   # Default physics FPS
-        )
-        
-        # Set up game loop callbacks
-        self.game_loop.set_update_callback(self.update)
-        self.game_loop.set_render_callback(self.render)
-        self.game_loop.set_physics_update_callback(self.physics_update)
-        
-        # Set up input callbacks
-        self._setup_input_callbacks()
-        
-        # Game state
-        self.current_screen = "game"  # game, menu, game_over, pause
-        
-        # Setup menu callbacks
-        self._setup_menu_callbacks()
+        try:
+            # Initialize Pygame
+            pygame.init()
+            print("✓ Pygame initialized successfully")
+            
+            # Initialize game components
+            self.display_manager = DisplayManager(config)
+            print("✓ Display manager initialized")
+            
+            self.game_logic = GameLogic(config)
+            print("✓ Game logic initialized")
+            
+            self.input_manager = InputManager(self.display_manager)
+            print("✓ Input manager initialized")
+            
+            self.game_controller = GameController(self.game_logic, self.input_manager)
+            print("✓ Game controller initialized")
+            
+            self.menu_manager = MenuManager(self.input_manager)
+            print("✓ Menu manager initialized")
+            
+            # Initialize renderers
+            self.game_renderer = GameRenderer(self.display_manager)
+            print("✓ Game renderer initialized")
+            
+            # Initialize audio manager (with error handling)
+            try:
+                self.audio_manager = AudioManager()
+                print("✓ Audio manager initialized")
+                
+                # Register audio callbacks with game logic
+                self.game_logic.register_audio_callback("food_collected", 
+                    lambda: self.audio_manager.play_sound_effect(SoundEffect.FOOD_COLLECTION))
+                self.game_logic.register_audio_callback("collision", 
+                    lambda: self.audio_manager.play_sound_effect(SoundEffect.COLLISION))
+            except Exception as e:
+                print(f"⚠️ Audio manager failed to initialize: {e}")
+                print("Game will continue without audio")
+                self.audio_manager = None
+            
+            # Initialize game loop
+            self.game_loop = FixedTimestepGameLoop(
+                game_logic=self.game_logic,
+                target_fps=60,  # Default target FPS
+                physics_fps=10   # Default physics FPS
+            )
+            print("✓ Game loop initialized")
+            
+            # Set up game loop callbacks
+            self.game_loop.set_update_callback(self.update)
+            self.game_loop.set_render_callback(self.render)
+            self.game_loop.set_physics_update_callback(self.physics_update)
+            
+            # Set up input callbacks
+            self._setup_input_callbacks()
+            
+            # Game state
+            self.current_screen = "game"  # game, menu, game_over, pause
+            
+            # Setup menu callbacks
+            self._setup_menu_callbacks()
+            
+            print("✓ Snake Game initialization completed successfully")
+            
+        except Exception as e:
+            print(f"❌ Failed to initialize Snake Game: {e}")
+            raise
         
     def _setup_input_callbacks(self):
         """Set up input callbacks for the main game."""
@@ -459,29 +483,38 @@ def main():
     """Main entry point for the Snake Game."""
     print("Snake Game - Starting up...")
     
-    # Create game configuration
-    config = GameConfig(
-        grid_width=40,
-        grid_height=30,
-        cell_size=20,
-        initial_speed=8.0,
-        speed_increase=0.5,
-        max_speed=25.0
-    )
-    
-    # Create and start the game
-    game = SnakeGame(config)
-    
     try:
-        game.start()
+        # Create game configuration
+        config = GameConfig(
+            grid_width=40,
+            grid_height=30,
+            cell_size=20,
+            initial_speed=8.0,
+            speed_increase=0.5,
+            max_speed=25.0
+        )
+        
+        # Create and start the game
+        game = SnakeGame(config)
+        
+        try:
+            game.start()
+        except Exception as e:
+            print(f"Error running game: {e}")
+            import traceback
+            traceback.print_exc()
+        finally:
+            game.cleanup()
+            
     except Exception as e:
-        print(f"Error running game: {e}")
+        print(f"Critical error during game initialization: {e}")
         import traceback
         traceback.print_exc()
-    finally:
-        game.cleanup()
+        print("Game will exit due to initialization error")
+        return 1
     
     print("Snake Game - Shutdown complete")
+    return 0
 
 
 if __name__ == "__main__":
