@@ -14,6 +14,7 @@ from src.ui.game_renderer import GameRenderer
 from src.ui.input_manager import InputManager, ControlScheme
 from src.ui.game_controller import GameController
 from src.ui.menu_manager import MenuManager, MenuState
+from src.ui.audio_manager import AudioManager, SoundEffect, BackgroundMusic
 
 
 class SnakeGame:
@@ -49,6 +50,15 @@ class SnakeGame:
         
         # Initialize renderers
         self.game_renderer = GameRenderer(self.display_manager)
+        
+        # Initialize audio manager
+        self.audio_manager = AudioManager()
+        
+        # Register audio callbacks with game logic
+        self.game_logic.register_audio_callback("food_collected", 
+            lambda: self.audio_manager.play_sound_effect(SoundEffect.FOOD_COLLECTION))
+        self.game_logic.register_audio_callback("collision", 
+            lambda: self.audio_manager.play_sound_effect(SoundEffect.COLLISION))
         
         # Initialize game loop
         self.game_loop = FixedTimestepGameLoop(
@@ -106,6 +116,10 @@ class SnakeGame:
         self.running = True
         self.menu_manager.set_menu_state(MenuState.START_MENU)
         self.current_screen = "menu"
+        
+        # Play main menu music
+        self.audio_manager.play_background_music(BackgroundMusic.MAIN_MENU)
+        
         self.game_loop.start()
         
         # Main game loop
@@ -149,6 +163,9 @@ class SnakeGame:
             if game_status == "game_over":
                 # Save high score if achieved
                 self.game_logic.get_scoring_system().save_high_score()
+                # Play game over audio
+                self.audio_manager.play_sound_effect(SoundEffect.GAME_OVER)
+                self.audio_manager.play_background_music(BackgroundMusic.GAME_OVER)
                 self.current_screen = "game_over"
                 self.menu_manager.set_menu_state(MenuState.GAME_OVER)
             elif game_status == "paused":
@@ -248,6 +265,8 @@ class SnakeGame:
     
     def _handle_new_game(self):
         """Handle new game menu action."""
+        self.audio_manager.play_sound_effect(SoundEffect.GAME_START)
+        self.audio_manager.play_background_music(BackgroundMusic.GAMEPLAY)
         self.game_controller.start_game()
         self.current_screen = "game"
         self.menu_manager.disable_menu()
@@ -343,6 +362,10 @@ class SnakeGame:
         if self.game_loop:
             self.game_loop.stop()
         
+        # Clean up audio
+        if hasattr(self, 'audio_manager'):
+            self.audio_manager.cleanup()
+        
         # Clean up display
         if self.display_manager:
             self.display_manager.cleanup()
@@ -370,6 +393,7 @@ class SnakeGame:
     
     def _handle_high_scores(self):
         """Handle high scores menu action."""
+        self.audio_manager.play_sound_effect(SoundEffect.MENU_SELECT)
         self.menu_manager.set_menu_state(MenuState.HIGH_SCORES)
         self.current_screen = "high_scores"
     

@@ -46,6 +46,9 @@ class GameLogic:
         # Initialize difficulty manager
         self.difficulty_manager = DifficultyManager()
         
+        # Audio callbacks
+        self.audio_callbacks = {}
+        
         # Initialize speed progression system with difficulty-based settings
         current_settings = self.difficulty_manager.get_current_settings()
         speed_config = SpeedConfig(
@@ -220,6 +223,9 @@ class GameLogic:
         food = self.food_manager.collect_food_at_position(head_position)
         
         if food:
+            # Play food collection sound
+            self._play_audio("food_collected")
+            
             # Get food properties
             food_type = food.get_effect_type()
             points = food.get_points()
@@ -483,6 +489,9 @@ class GameLogic:
         
         # Game over
         self.game_state.end_game()
+        
+        # Play collision sound
+        self._play_audio("collision")
     
     def _check_game_over(self) -> None:
         """Check for game over conditions."""
@@ -674,7 +683,19 @@ class GameLogic:
     
     def get_current_difficulty(self) -> str:
         """Get the current difficulty level."""
-        return self.difficulty_manager.get_current_difficulty().value
+        return self.difficulty_manager.get_current_difficulty()
+    
+    def register_audio_callback(self, event: str, callback) -> None:
+        """Register an audio callback for a specific event."""
+        self.audio_callbacks[event] = callback
+    
+    def _play_audio(self, event: str) -> None:
+        """Play audio for a specific event if callback is registered."""
+        if event in self.audio_callbacks:
+            try:
+                self.audio_callbacks[event]()
+            except Exception as e:
+                print(f"Error playing audio for {event}: {e}")
     
     def get_difficulty_settings(self) -> Dict:
         """Get the current difficulty settings."""
