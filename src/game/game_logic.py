@@ -194,11 +194,11 @@ class GameLogic:
         old_head = self.snake.get_head()
         
         # Move snake
-        new_head = self.snake.move()
+        new_head = self.snake.move(self.grid)
         
         if new_head:
             # Free old tail position if snake didn't grow
-            if not self.snake.has_grown():
+            if not self.snake.growing:
                 old_tail = self.snake.get_tail()
                 if old_tail:
                     self.grid.free_position(old_tail)
@@ -469,7 +469,7 @@ class GameLogic:
             return
         
         # Check self collision
-        if self.collision_detector.check_self_collision(self.snake):
+        if self.collision_detector.check_snake_self_collision(self.snake):
             self._handle_collision()
             return
     

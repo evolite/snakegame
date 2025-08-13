@@ -364,12 +364,12 @@ def main():
     
     # Create game configuration
     config = GameConfig(
-        window_width=800,
-        window_height=600,
         grid_width=40,
         grid_height=30,
-        target_fps=60,
-        physics_fps=10
+        cell_size=20,
+        initial_speed=8.0,
+        speed_increase=0.5,
+        max_speed=25.0
     )
     
     # Create and start the game
