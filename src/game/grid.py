@@ -96,6 +96,10 @@ class Grid:
         """Check if a position is within the grid boundaries."""
         return 0 <= position.x < self.width and 0 <= position.y < self.height
     
+    def is_position_valid(self, position: Position) -> bool:
+        """Alias for is_valid_position for compatibility with other systems."""
+        return self.is_valid_position(position)
+    
     def is_position_occupied(self, position: Position) -> bool:
         """Check if a position is occupied by an object."""
         return position in self._occupied_positions
