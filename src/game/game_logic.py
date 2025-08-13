@@ -666,27 +666,32 @@ class GameLogic:
         """End the current game."""
         self.game_state.end_game()
     
-    def change_snake_direction(self, direction: str) -> bool:
+    def change_snake_direction(self, direction) -> bool:
         """
         Change the snake's direction.
         
         Args:
-            direction: New direction ('up', 'down', 'left', 'right')
+            direction: New direction ('up', 'down', 'left', 'right') or Direction enum
             
         Returns:
             True if direction was changed, False otherwise
         """
-        # Map direction strings to snake direction enum
-        direction_mapping = {
-            'up': Direction.UP,
-            'down': Direction.DOWN,
-            'left': Direction.LEFT,
-            'right': Direction.RIGHT
-        }
+        # If direction is already a Direction enum, use it directly
+        if hasattr(direction, 'value') and hasattr(direction, '__class__') and direction.__class__.__name__ == 'Direction':
+            return self.snake.change_direction(direction)
         
-        if direction.lower() in direction_mapping:
-            new_direction = direction_mapping[direction.lower()]
-            return self.snake.change_direction(new_direction)
+        # If direction is a string, map it to Direction enum
+        if isinstance(direction, str):
+            direction_mapping = {
+                'up': Direction.UP,
+                'down': Direction.DOWN,
+                'left': Direction.LEFT,
+                'right': Direction.RIGHT
+            }
+            
+            if direction.lower() in direction_mapping:
+                new_direction = direction_mapping[direction.lower()]
+                return self.snake.change_direction(new_direction)
         
         return False
     
