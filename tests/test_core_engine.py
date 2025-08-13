@@ -195,7 +195,7 @@ class TestGameLogic:
         """Test game logic initialization."""
         config = GameConfig()
         logic = GameLogic(config)
-        assert logic.is_game_active()
+        assert logic.get_game_status().value == "playing"
         assert logic.get_score() == 0
     
     def test_direction_change(self):

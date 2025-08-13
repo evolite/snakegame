@@ -222,6 +222,9 @@ class PowerUpsManager:
             'score': 1.0,
             'growth': 1.0
         }
+        
+        # Game mode configuration support
+        self.spawn_frequency_multiplier = 1.0
     
     def activate_power_up(self, power_up_type: PowerUpType, current_time: float) -> bool:
         """
@@ -416,3 +419,7 @@ class PowerUpsManager:
             })
         
         return indicators
+    
+    def set_spawn_frequency_multiplier(self, multiplier: float) -> None:
+        """Set the spawn frequency multiplier for game mode configuration."""
+        self.spawn_frequency_multiplier = max(0.1, min(multiplier, 5.0))  # Clamp between 0.1x and 5x

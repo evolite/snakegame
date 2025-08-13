@@ -360,6 +360,9 @@ class EnhancedFoodManager:
         self.combo_timer = 0.0
         self.combo_threshold = 3  # Collect 3 special foods for combo
         
+        # Game mode configuration support
+        self.spawn_rate_multiplier = 1.0
+        
     def spawn_food(self, current_score: int = 0, current_level: int = 1, 
                    force_normal: bool = False) -> Optional[Food]:
         """
@@ -471,6 +474,12 @@ class EnhancedFoodManager:
         if self.combo_timer > 10.0:  # Reset combo after 10 seconds
             self.food_combinations.clear()
             self.combo_timer = 0.0
+    
+    def set_spawn_rate_multiplier(self, multiplier: float) -> None:
+        """Set the spawn rate multiplier for game mode configuration."""
+        self.spawn_rate_multiplier = max(0.1, min(multiplier, 5.0))  # Clamp between 0.1x and 5x
+        # Adjust spawn interval based on multiplier
+        self.spawn_interval = 2.0 / self.spawn_rate_multiplier
     
     def get_food_at_position(self, position: Position) -> Optional[Food]:
         """Get food at a specific position, if any."""

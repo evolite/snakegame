@@ -15,6 +15,7 @@ from src.ui.input_manager import InputManager, ControlScheme
 from src.ui.game_controller import GameController
 from src.ui.menu_manager import MenuManager, MenuState
 from src.ui.audio_manager import AudioManager, SoundEffect, BackgroundMusic
+from src.game.game_modes import GameMode
 
 
 class SnakeGame:
@@ -109,6 +110,13 @@ class SnakeGame:
         self.menu_manager.register_callback("difficulty_medium", self._handle_difficulty_medium)
         self.menu_manager.register_callback("difficulty_hard", self._handle_difficulty_hard)
         self.menu_manager.register_callback("back_to_menu", self._handle_back_to_menu)
+        
+        # Game mode callbacks
+        self.menu_manager.register_callback("game_mode", self._handle_game_mode_selection)
+        self.menu_manager.register_callback("mode_classic", self._handle_mode_classic)
+        self.menu_manager.register_callback("mode_time_attack", self._handle_mode_time_attack)
+        self.menu_manager.register_callback("mode_survival", self._handle_mode_survival)
+        self.menu_manager.register_callback("mode_speed", self._handle_mode_speed)
         
     def start(self):
         """Start the game."""
@@ -402,6 +410,49 @@ class SnakeGame:
         """Handle back to menu action."""
         self.menu_manager.set_menu_state(MenuState.START_MENU)
         self.current_screen = "menu"
+    
+    def _handle_game_mode_selection(self):
+        """Handle game mode selection menu action."""
+        self.audio_manager.play_sound_effect(SoundEffect.MENU_SELECT)
+        self.menu_manager.set_menu_state(MenuState.GAME_MODE_SELECTION)
+        self.current_screen = "game_mode_selection"
+    
+    def _handle_mode_classic(self):
+        """Handle classic mode selection."""
+        self.audio_manager.play_sound_effect(SoundEffect.MENU_SELECT)
+        self.game_logic.game_mode_manager.set_game_mode(GameMode.CLASSIC)
+        self.game_logic.game_mode_manager.apply_mode_config(self.game_logic)
+        self.menu_manager.set_menu_state(MenuState.START_MENU)
+        self.current_screen = "menu"
+        print("Selected Classic Mode")
+    
+    def _handle_mode_time_attack(self):
+        """Handle time attack mode selection."""
+        self.audio_manager.play_sound_effect(SoundEffect.MENU_SELECT)
+        self.game_logic.game_mode_manager.set_game_mode(GameMode.TIME_ATTACK)
+        self.game_logic.game_mode_manager.apply_mode_config(self.game_logic)
+        self.menu_manager.set_menu_state(MenuState.START_MENU)
+        self.current_screen = "menu"
+        print("Selected Time Attack Mode")
+    
+    def _handle_mode_survival(self):
+        """Handle survival mode selection."""
+        self.audio_manager.play_sound_effect(SoundEffect.MENU_SELECT)
+        self.game_logic.game_mode_manager.set_game_mode(GameMode.SURVIVAL)
+        self.game_logic.game_mode_manager.apply_mode_config(self.game_logic)
+        self.menu_manager.set_menu_state(MenuState.START_MENU)
+        self.current_screen = "menu"
+        print("Selected Survival Mode")
+    
+    def _handle_mode_speed(self):
+        """Handle speed mode selection."""
+        self.audio_manager.play_sound_effect(SoundEffect.MENU_SELECT)
+        self.audio_manager.play_sound_effect(SoundEffect.MENU_SELECT)
+        self.game_logic.game_mode_manager.set_game_mode(GameMode.SPEED)
+        self.game_logic.game_mode_manager.apply_mode_config(self.game_logic)
+        self.menu_manager.set_menu_state(MenuState.START_MENU)
+        self.current_screen = "menu"
+        print("Selected Speed Mode")
 
 
 def main():

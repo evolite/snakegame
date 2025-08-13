@@ -1,0 +1,50 @@
+{
+  "classic": {
+    "mode": "classic",
+    "games_played": 0,
+    "total_score": 0,
+    "best_score": 0,
+    "total_time": 0.0,
+    "best_time": 0.0,
+    "food_eaten": 0,
+    "obstacles_destroyed": 0,
+    "power_ups_collected": 0,
+    "last_played": null
+  },
+  "time_attack": {
+    "mode": "time_attack",
+    "games_played": 2,
+    "total_score": 3000,
+    "best_score": 1500,
+    "total_time": 191.0,
+    "best_time": 95.5,
+    "food_eaten": 30,
+    "obstacles_destroyed": 6,
+    "power_ups_collected": 4,
+    "last_played": "2025-08-13T17:58:18.354415"
+  },
+  "survival": {
+    "mode": "survival",
+    "games_played": 0,
+    "total_score": 0,
+    "best_score": 0,
+    "total_time": 0.0,
+    "best_time": 0.0,
+    "food_eaten": 0,
+    "obstacles_destroyed": 0,
+    "power_ups_collected": 0,
+    "last_played": null
+  },
+  "speed": {
+    "mode": "speed",
+    "games_played": 0,
+    "total_score": 0,
+    "best_score": 0,
+    "total_time": 0.0,
+    "best_time": 0.0,
+    "food_eaten": 0,
+    "obstacles_destroyed": 0,
+    "power_ups_collected": 0,
+    "last_played": null
+  }
+}

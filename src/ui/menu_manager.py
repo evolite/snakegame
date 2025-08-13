@@ -24,6 +24,7 @@ class MenuState(Enum):
     SETTINGS_MENU = "settings_menu"
     DIFFICULTY_SELECTION = "difficulty_selection"
     HIGH_SCORES = "high_scores"
+    GAME_MODE_SELECTION = "game_mode_selection"
     IN_GAME = "in_game"
 
 
@@ -88,6 +89,7 @@ class MenuManager:
         return {
                     MenuState.START_MENU: [
             MenuOption("New Game", "new_game"),
+            MenuOption("Game Mode", "game_mode"),
             MenuOption("High Scores", "high_scores"),
             MenuOption("Settings", "settings"),
             MenuOption("Quit", "quit")
@@ -115,9 +117,16 @@ class MenuManager:
                 MenuOption("Hard", "difficulty_hard"),
                 MenuOption("Back", "back")
             ],
-            MenuState.HIGH_SCORES: [
-                MenuOption("Back to Menu", "back_to_menu")
-            ]
+                    MenuState.HIGH_SCORES: [
+            MenuOption("Back to Menu", "back_to_menu")
+        ],
+        MenuState.GAME_MODE_SELECTION: [
+            MenuOption("Classic Mode", "mode_classic"),
+            MenuOption("Time Attack", "mode_time_attack"),
+            MenuOption("Survival Mode", "mode_survival"),
+            MenuOption("Speed Mode", "mode_speed"),
+            MenuOption("Back to Menu", "back_to_menu")
+        ]
         }
     
     def _setup_input_callbacks(self):

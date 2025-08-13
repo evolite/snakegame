@@ -104,7 +104,7 @@ class Obstacle:
             duration=3.0,
             visual_effect="speed_pad"
         ),
-        ObstacleType.SCORE_MULTIPLIER: ObstacleType.SCORE_MULTIPLIER(
+        ObstacleType.SCORE_MULTIPLIER: ObstacleProperties(
             obstacle_type=ObstacleType.SCORE_MULTIPLIER,
             behavior=ObstacleBehavior.BENEFICIAL,
             points=25,

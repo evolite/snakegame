@@ -22,6 +22,8 @@ from .power_ups import PowerUpsManager, PowerUpType
 from .speed_system import SpeedProgressionSystem, SpeedConfig
 from .difficulty_manager import DifficultyManager
 from .obstacles import ObstacleManager, ObstacleType
+from .game_modes import GameModeManager, GameMode
+from .grid import Direction
 
 
 class GameLogic:
@@ -47,6 +49,9 @@ class GameLogic:
         
         # Initialize difficulty manager
         self.difficulty_manager = DifficultyManager()
+        
+        # Initialize game mode manager
+        self.game_mode_manager = GameModeManager()
         
         # Audio callbacks
         self.audio_callbacks = {}
@@ -113,6 +118,9 @@ class GameLogic:
         
         # Update game state difficulty
         self.game_state.difficulty = self.difficulty_manager.get_current_difficulty()
+        
+        # Apply game mode configuration
+        self.game_mode_manager.apply_mode_config(self)
     
     def update(self, delta_time: float) -> None:
         """
@@ -650,10 +658,10 @@ class GameLogic:
         """
         # Map direction strings to snake direction enum
         direction_mapping = {
-            'up': 'UP',
-            'down': 'DOWN',
-            'left': 'LEFT',
-            'right': 'RIGHT'
+            'up': Direction.UP,
+            'down': Direction.DOWN,
+            'left': Direction.LEFT,
+            'right': Direction.RIGHT
         }
         
         if direction.lower() in direction_mapping:

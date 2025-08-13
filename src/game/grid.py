@@ -100,6 +100,10 @@ class Grid:
         """Check if a position is occupied by an object."""
         return position in self._occupied_positions
     
+    def is_position_free(self, position: Position) -> bool:
+        """Check if a position is free (not occupied)."""
+        return not self.is_position_occupied(position)
+    
     def occupy_position(self, position: Position) -> bool:
         """Mark a position as occupied. Returns False if already occupied."""
         if self.is_position_occupied(position):
