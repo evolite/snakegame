@@ -87,6 +87,7 @@ class GameRenderer:
                    score: int, level: int, food_eaten: int, 
                    game_time: float, high_score: int, 
                    power_ups_manager: PowerUpsManager = None,
+                   obstacle_manager = None,
                    delta_time: float = 0.0, current_difficulty: str = "Medium") -> None:
         """
         Render the complete game state.
@@ -123,6 +124,10 @@ class GameRenderer:
         
         # Render food items
         self._render_food(food_list)
+        
+        # Render obstacles
+        if obstacle_manager:
+            self._render_obstacles(obstacle_manager)
         
         # Render visual effects (particles, animations)
         if self.enable_particles:
@@ -556,3 +561,93 @@ class GameRenderer:
     def get_power_ups_renderer(self) -> PowerUpsRenderer:
         """Get the power-ups renderer for advanced configuration."""
         return self.power_ups_renderer
+    
+    def _render_obstacles(self, obstacle_manager) -> None:
+        """Render all obstacles."""
+        for obstacle in obstacle_manager.active_obstacles:
+            if obstacle.is_active():
+                self._render_obstacle(obstacle)
+    
+    def _render_obstacle(self, obstacle) -> None:
+        """Render a single obstacle."""
+        position = obstacle.get_position()
+        obstacle_type = obstacle.get_type()
+        
+        # Get obstacle color based on type
+        color = self._get_obstacle_color(obstacle_type)
+        
+        # Get obstacle rect
+        rect = self.display.get_grid_rect(position.x, position.y)
+        
+        # Render obstacle with visual effects
+        if obstacle_type.value == "static_wall":
+            # Solid wall
+            self.display.draw_rect(rect, color)
+            self.display.draw_rect(rect, 'dark_gray', False, 2)
+        elif obstacle_type.value == "breakable_wall":
+            # Breakable wall with cracks
+            self.display.draw_rect(rect, color)
+            self.display.draw_rect(rect, 'brown', False, 2)
+        elif obstacle_type.value == "spike_trap":
+            # Spike trap with spikes
+            self.display.draw_rect(rect, color)
+            self._render_spikes(rect)
+        elif obstacle_type.value == "speed_pad":
+            # Speed pad with arrows
+            self.display.draw_rect(rect, color)
+            self._render_speed_pad_arrows(rect)
+        elif obstacle_type.value == "score_multiplier":
+            # Score multiplier with star
+            self.display.draw_rect(rect, color)
+            self._render_multiplier_star(rect)
+        else:
+            # Default obstacle rendering
+            self.display.draw_rect(rect, color)
+            self.display.draw_rect(rect, 'dark_gray', False, 1)
+    
+    def _get_obstacle_color(self, obstacle_type) -> str:
+        """Get the color for an obstacle type."""
+        obstacle_colors = {
+            "static_wall": "gray",
+            "breakable_wall": "brown",
+            "moving_obstacle": "purple",
+            "spike_trap": "red",
+            "teleporter": "blue",
+            "speed_pad": "green",
+            "score_multiplier": "gold",
+            "safe_zone": "cyan"
+        }
+        return obstacle_colors.get(obstacle_type.value, "gray")
+    
+    def _render_spikes(self, rect) -> None:
+        """Render spikes on a spike trap."""
+        spike_color = "dark_red"
+        spike_size = max(2, self.cell_size // 6)
+        
+        # Draw multiple spikes
+        for i in range(3):
+            x_offset = (i - 1) * (self.cell_size // 4)
+            spike_pos = (rect.centerx + x_offset, rect.centery - self.cell_size // 4)
+            self.display.draw_circle(spike_pos, spike_size, spike_color)
+    
+    def _render_speed_pad_arrows(self, rect) -> None:
+        """Render arrows on a speed pad."""
+        arrow_color = "dark_green"
+        
+        # Draw forward arrow
+        arrow_points = [
+            (rect.centerx - self.cell_size // 4, rect.centery),
+            (rect.centerx + self.cell_size // 4, rect.centery),
+            (rect.centerx + self.cell_size // 6, rect.centery - self.cell_size // 6),
+            (rect.centerx + self.cell_size // 6, rect.centery + self.cell_size // 6)
+        ]
+        self.display.draw_polygon(arrow_points, arrow_color)
+    
+    def _render_multiplier_star(self, rect) -> None:
+        """Render a star on a score multiplier obstacle."""
+        star_color = "dark_gold"
+        star_size = self.cell_size // 3
+        
+        # Draw a simple star shape
+        center = (rect.centerx, rect.centery)
+        self.display.draw_circle(center, star_size, star_color)

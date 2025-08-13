@@ -219,6 +219,7 @@ class SnakeGame:
             game_time=self.game_logic.get_game_time(),
             high_score=self.game_logic.get_high_score(),
             power_ups_manager=self.game_logic.power_ups_manager,
+            obstacle_manager=self.game_logic.obstacle_manager,
             current_difficulty=self.game_logic.get_current_difficulty()
         )
     

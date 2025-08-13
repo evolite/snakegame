@@ -21,6 +21,7 @@ from .scoring import ScoringSystem
 from .power_ups import PowerUpsManager, PowerUpType
 from .speed_system import SpeedProgressionSystem, SpeedConfig
 from .difficulty_manager import DifficultyManager
+from .obstacles import ObstacleManager, ObstacleType
 
 
 class GameLogic:
@@ -42,6 +43,7 @@ class GameLogic:
         self.collision_detector = CollisionDetector(self.grid)
         self.scoring_system = ScoringSystem()
         self.power_ups_manager = PowerUpsManager()
+        self.obstacle_manager = ObstacleManager(self.grid)
         
         # Initialize difficulty manager
         self.difficulty_manager = DifficultyManager()
@@ -90,6 +92,9 @@ class GameLogic:
             force_normal=True
         )
         
+        # Spawn initial obstacles
+        self.obstacle_manager.spawn_obstacles(3, [ObstacleType.STATIC_WALL])
+        
         # Reset scoring
         self.scoring_system.reset_score()
         
@@ -132,6 +137,17 @@ class GameLogic:
             current_score=self.game_state.score,
             current_level=self.game_state.level
         )
+        
+        # Update obstacles
+        self.obstacle_manager.update(delta_time)
+        
+        # Spawn additional obstacles based on level and difficulty
+        if self.game_state.level > 1 and self.game_state.level % 3 == 0:
+            # Spawn new obstacles every 3 levels
+            new_obstacles = self.obstacle_manager.spawn_obstacles(
+                num_obstacles=2,
+                obstacle_types=[ObstacleType.STATIC_WALL, ObstacleType.BREAKABLE_WALL]
+            )
         
         # Update speed progression system
         self.speed_system.update(
@@ -478,6 +494,12 @@ class GameLogic:
         if self.collision_detector.check_snake_self_collision(self.snake):
             self._handle_collision()
             return
+        
+        # Check obstacle collision
+        collision_detected, obstacle = self.obstacle_manager.check_collision(head_position)
+        if collision_detected:
+            self._handle_obstacle_collision(obstacle)
+            return
     
     def _handle_collision(self) -> None:
         """Handle collision events."""
@@ -492,6 +514,51 @@ class GameLogic:
         
         # Play collision sound
         self._play_audio("collision")
+    
+    def _handle_obstacle_collision(self, obstacle) -> None:
+        """Handle collision with obstacles."""
+        if not obstacle:
+            return
+        
+        # Handle different obstacle types
+        if obstacle.is_hazardous():
+            # Hazardous obstacles cause game over
+            self._handle_collision()
+        elif obstacle.is_beneficial():
+            # Beneficial obstacles provide effects
+            self._handle_beneficial_obstacle(obstacle)
+        elif obstacle.is_breakable():
+            # Breakable obstacles can be destroyed
+            self._handle_breakable_obstacle(obstacle)
+        elif obstacle.is_moving():
+            # Moving obstacles can be avoided
+            pass  # Snake can move through moving obstacles
+        elif obstacle.is_solid():
+            # Solid obstacles block movement
+            self._handle_collision()
+    
+    def _handle_beneficial_obstacle(self, obstacle) -> None:
+        """Handle beneficial obstacle effects."""
+        if obstacle.get_type() == ObstacleType.SPEED_PAD:
+            # Speed boost effect
+            self.speed_system.apply_temporary_boost(2.0, 3.0)
+        elif obstacle.get_type() == ObstacleType.SCORE_MULTIPLIER:
+            # Score multiplier effect
+            self.scoring_system.score_multiplier.set_temporary_multiplier(2.0, 5.0)
+        elif obstacle.get_type() == ObstacleType.SAFE_ZONE:
+            # Safe zone effect - temporary invincibility
+            self.power_ups_manager.activate_power_up(PowerUpType.SHIELD, self.game_state.game_time)
+    
+    def _handle_breakable_obstacle(self, obstacle) -> None:
+        """Handle breakable obstacle destruction."""
+        # Destroy the obstacle
+        obstacle.take_damage(1)
+        
+        # Award points
+        points = obstacle.get_points()
+        if points > 0:
+            self.scoring_system.add_score(points)
+            self.game_state.add_score(points)
     
     def _check_game_over(self) -> None:
         """Check for game over conditions."""
@@ -522,6 +589,10 @@ class GameLogic:
     def get_speed_system(self) -> SpeedProgressionSystem:
         """Get the speed progression system."""
         return self.speed_system
+    
+    def get_obstacle_manager(self) -> ObstacleManager:
+        """Get the obstacle manager."""
+        return self.obstacle_manager
     
     def get_current_speed(self) -> float:
         """Get the current game speed including power-up effects."""
