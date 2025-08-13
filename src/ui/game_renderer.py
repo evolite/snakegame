@@ -462,6 +462,49 @@ class GameRenderer:
         self.display.draw_text(instruction_text, (center_x, center_y + 80), 
                              self.display.font, 'light_gray', True)
     
+    def render_high_scores_screen(self, high_scores: List) -> None:
+        """Render the high scores screen."""
+        center_x, center_y = self.display.get_window_size()
+        center_x //= 2
+        center_y //= 2
+        
+        # Title
+        self.display.draw_text("🏆 HIGH SCORES", (center_x, center_y - 200), 
+                             self.display.large_font, 'gold', True)
+        
+        # Draw high scores
+        if not high_scores:
+            self.display.draw_text("No high scores yet!", (center_x, center_y), 
+                                 self.display.font, 'light_gray', True)
+            self.display.draw_text("Play a game to set your first record!", (center_x, center_y + 50), 
+                                 self.display.font, 'light_gray', True)
+        else:
+            # Draw score entries
+            start_y = center_y - 100
+            for i, score_entry in enumerate(high_scores[:10]):  # Top 10 scores
+                # Rank
+                rank_color = 'gold' if i == 0 else 'silver' if i == 1 else 'bronze' if i == 2 else 'white'
+                rank_text = f"{i + 1}."
+                self.display.draw_text(rank_text, (center_x - 200, start_y + i * 40), 
+                                     self.display.font, rank_color, False)
+                
+                # Player name
+                self.display.draw_text(score_entry.player_name, (center_x - 100, start_y + i * 40), 
+                                     self.display.font, 'white', False)
+                
+                # Score
+                self.display.draw_text(str(score_entry.score), (center_x + 50, start_y + i * 40), 
+                                     self.display.font, 'white', False)
+                
+                # Difficulty
+                self.display.draw_text(score_entry.difficulty.title(), (center_x + 150, start_y + i * 40), 
+                                     self.display.font, 'light_gray', False)
+        
+        # Draw instructions
+        self.display.draw_text("Press Enter or Esc to return to menu", 
+                             (center_x, center_y + 200), 
+                             self.display.font, 'light_gray', True)
+    
     # Visual effects integration methods
     
     def create_food_collection_effect(self, position: Tuple[float, float]) -> None:

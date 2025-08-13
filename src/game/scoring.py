@@ -174,6 +174,19 @@ class ScoringSystem:
         
         return final_score
     
+    def add_score(self, points: int) -> int:
+        """
+        Add points directly to the current score.
+        
+        Args:
+            points: The points to add
+            
+        Returns:
+            The points added
+        """
+        self.current_score += points
+        return points
+    
     def add_bonus_score(self, bonus_type: str) -> int:
         """
         Add bonus score for achievements.

@@ -23,6 +23,7 @@ class MenuState(Enum):
     PAUSE_MENU = "pause_menu"
     SETTINGS_MENU = "settings_menu"
     DIFFICULTY_SELECTION = "difficulty_selection"
+    HIGH_SCORES = "high_scores"
     IN_GAME = "in_game"
 
 
@@ -85,11 +86,12 @@ class MenuManager:
     def _setup_menu_options(self) -> Dict[MenuState, List[MenuOption]]:
         """Set up menu options for different states."""
         return {
-            MenuState.START_MENU: [
-                MenuOption("New Game", "new_game"),
-                MenuOption("Settings", "settings"),
-                MenuOption("Quit", "quit")
-            ],
+                    MenuState.START_MENU: [
+            MenuOption("New Game", "new_game"),
+            MenuOption("High Scores", "high_scores"),
+            MenuOption("Settings", "settings"),
+            MenuOption("Quit", "quit")
+        ],
             MenuState.GAME_OVER: [
                 MenuOption("Retry", "retry"),
                 MenuOption("Main Menu", "main_menu"),
@@ -112,6 +114,9 @@ class MenuManager:
                 MenuOption("Medium", "difficulty_medium"),
                 MenuOption("Hard", "difficulty_hard"),
                 MenuOption("Back", "back")
+            ],
+            MenuState.HIGH_SCORES: [
+                MenuOption("Back to Menu", "back_to_menu")
             ]
         }
     
@@ -177,6 +182,9 @@ class MenuManager:
         elif self.current_state == MenuState.DIFFICULTY_SELECTION:
             # In difficulty selection, cancel goes back to settings
             self._execute_menu_action("back")
+        elif self.current_state == MenuState.HIGH_SCORES:
+            # In high scores, cancel goes back to main menu
+            self._execute_menu_action("back_to_menu")
     
     def _execute_menu_action(self, action: str):
         """Execute a menu action."""
@@ -281,7 +289,8 @@ class MenuManager:
             MenuState.GAME_OVER: "GAME OVER",
             MenuState.PAUSE_MENU: "PAUSED",
             MenuState.SETTINGS_MENU: "SETTINGS",
-            MenuState.DIFFICULTY_SELECTION: "DIFFICULTY"
+            MenuState.DIFFICULTY_SELECTION: "DIFFICULTY",
+            MenuState.HIGH_SCORES: "🏆 HIGH SCORES"
         }
         return title_map.get(self.current_state, "")
     
@@ -292,7 +301,8 @@ class MenuManager:
             MenuState.GAME_OVER: "Use ↑↓ to navigate, Enter to select",
             MenuState.PAUSE_MENU: "Use ↑↓ to navigate, Enter to select",
             MenuState.SETTINGS_MENU: "Use ↑↓ to navigate, Enter to select, Esc to go back",
-            MenuState.DIFFICULTY_SELECTION: "Use ↑↓ to navigate, Enter to select, Esc to go back"
+            MenuState.DIFFICULTY_SELECTION: "Use ↑↓ to navigate, Enter to select, Esc to go back",
+            MenuState.HIGH_SCORES: "Press Enter or Esc to return to menu"
         }
         return instruction_map.get(self.current_state, "")
     

@@ -86,6 +86,7 @@ class SnakeGame:
     def _setup_menu_callbacks(self):
         """Set up callbacks for menu actions."""
         self.menu_manager.register_callback("new_game", self._handle_new_game)
+        self.menu_manager.register_callback("high_scores", self._handle_high_scores)
         self.menu_manager.register_callback("settings", self._handle_settings)
         self.menu_manager.register_callback("quit", self._handle_quit)
         self.menu_manager.register_callback("retry", self._handle_retry)
@@ -97,6 +98,7 @@ class SnakeGame:
         self.menu_manager.register_callback("difficulty_easy", self._handle_difficulty_easy)
         self.menu_manager.register_callback("difficulty_medium", self._handle_difficulty_medium)
         self.menu_manager.register_callback("difficulty_hard", self._handle_difficulty_hard)
+        self.menu_manager.register_callback("back_to_menu", self._handle_back_to_menu)
         
     def start(self):
         """Start the game."""
@@ -145,6 +147,8 @@ class SnakeGame:
             # Check game state changes
             game_status = self.game_controller.get_game_status()
             if game_status == "game_over":
+                # Save high score if achieved
+                self.game_logic.get_scoring_system().save_high_score()
                 self.current_screen = "game_over"
                 self.menu_manager.set_menu_state(MenuState.GAME_OVER)
             elif game_status == "paused":
@@ -177,6 +181,8 @@ class SnakeGame:
             self._render_game_over_screen()
         elif self.current_screen == "menu":
             self._render_menu_screen()
+        elif self.current_screen == "high_scores":
+            self._render_high_scores_screen()
         
         # Update display
         self.display_manager.update_display()
@@ -223,6 +229,11 @@ class SnakeGame:
         selected_index = self.menu_manager.get_selected_index()
         
         self.game_renderer.render_menu_screen(title, options, selected_index)
+    
+    def _render_high_scores_screen(self):
+        """Render the high scores screen."""
+        high_scores = self.game_logic.get_scoring_system().get_high_scores_list()
+        self.game_renderer.render_high_scores_screen(high_scores)
     
     def _handle_quit(self, action, key):
         """Handle quit input."""
@@ -356,6 +367,16 @@ class SnakeGame:
     def is_paused(self) -> bool:
         """Check if the game is paused."""
         return self.paused
+    
+    def _handle_high_scores(self):
+        """Handle high scores menu action."""
+        self.menu_manager.set_menu_state(MenuState.HIGH_SCORES)
+        self.current_screen = "high_scores"
+    
+    def _handle_back_to_menu(self):
+        """Handle back to menu action."""
+        self.menu_manager.set_menu_state(MenuState.START_MENU)
+        self.current_screen = "menu"
 
 
 def main():
