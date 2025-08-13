@@ -98,7 +98,6 @@ class SnakeGame:
             # Set up game loop callbacks
             self.game_loop.set_update_callback(self.update)
             self.game_loop.set_render_callback(self.render)
-            self.game_loop.set_physics_update_callback(self.physics_update)
             
             # Set up input callbacks
             self._setup_input_callbacks()
@@ -168,6 +167,7 @@ class SnakeGame:
         
         # Main game loop
         try:
+            clock = pygame.time.Clock()
             while self.running:
                 # Handle events
                 for event in pygame.event.get():
@@ -178,17 +178,17 @@ class SnakeGame:
                     # Handle input events
                     self.game_controller.handle_event(event)
                 
+                # Get delta time for this frame
+                delta_time = clock.tick(60) / 1000.0  # Convert to seconds
+                
                 # Update game loop
                 self.game_loop.update()
                 
-                # Physics update at fixed timestep
-                self.game_loop.physics_update(self.game_loop.delta_time)
+                # Update game state
+                self.update(delta_time)
                 
                 # Render the game
                 self.render()
-                
-                # Frame rate limiting
-                pygame.time.Clock().tick(60)
                     
         except KeyboardInterrupt:
             print("Game interrupted by user")
