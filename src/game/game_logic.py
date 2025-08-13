@@ -107,11 +107,13 @@ class GameLogic:
             self.grid.occupy_position(segment)
         
         # Spawn initial food
+        print("Spawning initial food...")  # Debug output
         self.food_manager.spawn_food(
             current_score=self.game_state.score,
             current_level=self.game_state.level,
             force_normal=True
         )
+        print(f"Initial food spawned. Active food count: {self.food_manager.get_active_food_count()}")  # Debug output
         
         # Spawn initial obstacles
         self.obstacle_manager.spawn_obstacles(3, [ObstacleType.STATIC_WALL])
@@ -259,10 +261,13 @@ class GameLogic:
         if not head_position:
             return
         
+        print(f"Checking food collection at position: {head_position}")  # Debug output
+        
         # Check for food at head position
         food = self.food_manager.collect_food_at_position(head_position)
         
         if food:
+            print(f"Food collected: {food.get_food_type()} at {head_position}")  # Debug output
             # Play food collection sound
             self._play_audio("food_collected")
             
@@ -302,6 +307,8 @@ class GameLogic:
                 current_score=self.game_state.score,
                 current_level=self.game_state.level
             )
+        else:
+            print(f"No food found at position: {head_position}")  # Debug output
     
     def _apply_enhanced_food_effects(self, food_type: FoodType, food: Food, effect_strength: float) -> None:
         """
@@ -505,34 +512,44 @@ class GameLogic:
         if not head_position:
             return
         
+        print(f"Checking collisions at position: {head_position}")  # Debug output
+        
         # Check if snake is invincible
         if self.power_ups_manager.is_invincible():
+            print("Snake is invincible, skipping collision checks")  # Debug output
             return
         
         # Check wall collision
         if self.collision_detector.check_wall_collision(head_position):
+            print(f"Wall collision detected at {head_position}")  # Debug output
             self._handle_collision()
             return
         
         # Check self collision
         if self.collision_detector.check_snake_self_collision(self.snake):
+            print(f"Self collision detected at {head_position}")  # Debug output
             self._handle_collision()
             return
         
         # Check obstacle collision
         collision_detected, obstacle = self.obstacle_manager.check_collision(head_position)
         if collision_detected:
+            print(f"Obstacle collision detected at {head_position}")  # Debug output
             self._handle_obstacle_collision(obstacle)
             return
     
     def _handle_collision(self) -> None:
         """Handle collision events."""
+        print("Handling collision event")  # Debug output
+        
         # Check if shield is active
         if self.power_ups_manager.has_power_up(PowerUpType.SHIELD):
+            print("Shield active, consuming shield")  # Debug output
             # Consume shield
             self.power_ups_manager.deactivate_power_up(PowerUpType.SHIELD)
             return
         
+        print("No shield, ending game")  # Debug output
         # Game over
         self.game_state.end_game()
         

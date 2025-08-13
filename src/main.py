@@ -209,12 +209,16 @@ class SnakeGame:
             
             # Check game state changes
             game_status = self.game_controller.get_game_status()
-            if game_status == "game_over":
+            print(f"Game status: {game_status}")  # Debug output
+            
+            if game_status == "game_over" or str(game_status) == "game_over":
+                print("Game over detected, switching to game over screen")  # Debug output
                 # Save high score if achieved
                 self.game_logic.get_scoring_system().save_high_score()
                 # Play game over audio
-                self.audio_manager.play_sound_effect(SoundEffect.GAME_OVER)
-                self.audio_manager.play_background_music(BackgroundMusic.GAME_OVER)
+                if self.audio_manager:
+                    self.audio_manager.play_sound_effect(SoundEffect.GAME_OVER)
+                    self.audio_manager.play_background_music(BackgroundMusic.GAME_OVER)
                 self.current_screen = "game_over"
                 self.menu_manager.set_menu_state(MenuState.GAME_OVER)
             elif game_status == "paused":
