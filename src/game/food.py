@@ -363,6 +363,19 @@ class EnhancedFoodManager:
         # Game mode configuration support
         self.spawn_rate_multiplier = 1.0
         
+    def _can_food_type_spawn(self, food_type: FoodType, current_score: int, current_level: int) -> bool:
+        """Check if a food type can spawn based on current game state."""
+        properties = Food.FOOD_TYPES[food_type]
+        conditions = properties.spawn_conditions
+        
+        if "min_score" in conditions and current_score < conditions["min_score"]:
+            return False
+        
+        if "min_level" in conditions and current_level < conditions["min_level"]:
+            return False
+        
+        return True
+        
     def spawn_food(self, current_score: int = 0, current_level: int = 1, 
                    force_normal: bool = False) -> Optional[Food]:
         """
@@ -403,8 +416,8 @@ class EnhancedFoodManager:
         available_types = []
         total_probability = 0.0
         
-        for food_type, properties in self.FOOD_TYPES.items():
-            if food_type.can_spawn(current_score, current_level):
+        for food_type, properties in Food.FOOD_TYPES.items():
+            if self._can_food_type_spawn(food_type, current_score, current_level):
                 # Apply rarity boost
                 rarity_boost = self.rarity_boosts.get(properties.rarity, 1.0)
                 adjusted_probability = properties.probability * rarity_boost

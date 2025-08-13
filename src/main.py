@@ -40,30 +40,38 @@ class SnakeGame:
         
         try:
             # Initialize Pygame
+            print("Initializing Pygame...")
             pygame.init()
             print("✓ Pygame initialized successfully")
             
             # Initialize game components
+            print("Initializing display manager...")
             self.display_manager = DisplayManager(config)
             print("✓ Display manager initialized")
             
+            print("Initializing game logic...")
             self.game_logic = GameLogic(config)
             print("✓ Game logic initialized")
             
+            print("Initializing input manager...")
             self.input_manager = InputManager(self.display_manager)
             print("✓ Input manager initialized")
             
+            print("Initializing game controller...")
             self.game_controller = GameController(self.game_logic, self.input_manager)
             print("✓ Game controller initialized")
             
+            print("Initializing menu manager...")
             self.menu_manager = MenuManager(self.input_manager)
             print("✓ Menu manager initialized")
             
             # Initialize renderers
+            print("Initializing game renderer...")
             self.game_renderer = GameRenderer(self.display_manager)
             print("✓ Game renderer initialized")
             
             # Initialize audio manager (with error handling)
+            print("Initializing audio manager...")
             try:
                 self.audio_manager = AudioManager()
                 print("✓ Audio manager initialized")
@@ -79,6 +87,7 @@ class SnakeGame:
                 self.audio_manager = None
             
             # Initialize game loop
+            print("Initializing game loop...")
             self.game_loop = FixedTimestepGameLoop(
                 game_logic=self.game_logic,
                 target_fps=60,  # Default target FPS
@@ -104,6 +113,8 @@ class SnakeGame:
             
         except Exception as e:
             print(f"❌ Failed to initialize Snake Game: {e}")
+            import traceback
+            traceback.print_exc()
             raise
         
     def _setup_input_callbacks(self):
@@ -484,7 +495,13 @@ def main():
     print("Snake Game - Starting up...")
     
     try:
+        # Import check
+        print("Checking imports...")
+        import pygame
+        print(f"✓ Pygame {pygame.version.ver} imported successfully")
+        
         # Create game configuration
+        print("Creating game configuration...")
         config = GameConfig(
             grid_width=40,
             grid_height=30,
@@ -493,27 +510,34 @@ def main():
             speed_increase=0.5,
             max_speed=25.0
         )
+        print("✓ Game configuration created")
         
         # Create and start the game
+        print("Creating SnakeGame instance...")
         game = SnakeGame(config)
+        print("✓ SnakeGame instance created successfully")
         
         try:
+            print("Starting game...")
             game.start()
         except Exception as e:
-            print(f"Error running game: {e}")
+            print(f"❌ Error running game: {e}")
             import traceback
             traceback.print_exc()
         finally:
+            print("Cleaning up...")
             game.cleanup()
             
     except Exception as e:
-        print(f"Critical error during game initialization: {e}")
+        print(f"❌ Critical error during game initialization: {e}")
         import traceback
         traceback.print_exc()
         print("Game will exit due to initialization error")
+        input("Press Enter to continue...")  # Keep console open
         return 1
     
     print("Snake Game - Shutdown complete")
+    input("Press Enter to continue...")  # Keep console open
     return 0
 
 
