@@ -1,21 +1,20 @@
 """
-Input Manager
+Input Manager for Snake Game
 
-This module handles all input processing for the game:
-- Keyboard input handling
-- Input buffering
-- Control mapping
-- Input validation
+Handles keyboard input, input buffering, and control mapping.
+Provides responsive and intuitive controls for the game.
 """
 
 import pygame
-from typing import Dict, List, Optional, Callable
+from typing import Dict, List, Optional, Callable, Set
 from enum import Enum
-from ..game.grid import Direction
+from dataclasses import dataclass
+from collections import deque
+import time
 
 
 class InputAction(Enum):
-    """Enumeration of possible input actions."""
+    """Available input actions for the game."""
     MOVE_UP = "move_up"
     MOVE_DOWN = "move_down"
     MOVE_LEFT = "move_left"
@@ -24,370 +23,366 @@ class InputAction(Enum):
     RESUME = "resume"
     RESTART = "restart"
     QUIT = "quit"
-    MENU_UP = "menu_up"
-    MENU_DOWN = "menu_down"
-    MENU_SELECT = "menu_select"
-    MENU_BACK = "menu_back"
+    MENU = "menu"
+    CONFIRM = "confirm"
+    CANCEL = "cancel"
+
+
+class ControlScheme(Enum):
+    """Available control schemes."""
+    ARROW_KEYS = "arrow_keys"
+    WASD = "wasd"
+    GAMEPAD = "gamepad"
+
+
+@dataclass
+class KeyBinding:
+    """Represents a key binding for an input action."""
+    primary_key: int
+    secondary_key: Optional[int] = None
+    description: str = ""
+    is_modifier: bool = False
 
 
 class InputManager:
     """
-    Manages all input processing for the game.
+    Manages all input handling for the Snake game.
     
-    Handles:
-    - Keyboard input detection
-    - Input buffering
-    - Control mapping
-    - Input validation
-    - Event processing
+    Features:
+    - Multiple control schemes (Arrow keys, WASD)
+    - Input buffering for smooth movement
+    - Prevent reverse direction movement
+    - Responsive and lag-free input
+    - Configurable key bindings
     """
     
-    def __init__(self):
+    def __init__(self, display_manager=None):
         """Initialize the input manager."""
-        # Control mappings
-        self.key_mappings = {
-            # Movement controls
-            pygame.K_UP: InputAction.MOVE_UP,
-            pygame.K_DOWN: InputAction.MOVE_DOWN,
-            pygame.K_LEFT: InputAction.MOVE_LEFT,
-            pygame.K_RIGHT: InputAction.MOVE_RIGHT,
-            pygame.K_w: InputAction.MOVE_UP,
-            pygame.K_s: InputAction.MOVE_DOWN,
-            pygame.K_a: InputAction.MOVE_LEFT,
-            pygame.K_d: InputAction.MOVE_RIGHT,
-            
-            # Game control
-            pygame.K_p: InputAction.PAUSE,
-            pygame.K_SPACE: InputAction.PAUSE,
-            pygame.K_r: InputAction.RESTART,
-            pygame.K_q: InputAction.QUIT,
-            pygame.K_ESCAPE: InputAction.QUIT,
-            
-            # Menu navigation
-            pygame.K_RETURN: InputAction.MENU_SELECT,
-            pygame.K_BACKSPACE: InputAction.MENU_BACK
-        }
+        self.display_manager = display_manager
+        self.control_scheme = ControlScheme.ARROW_KEYS
+        
+        # Input state
+        self.keys_pressed: Set[int] = set()
+        self.keys_just_pressed: Set[int] = set()
+        self.keys_just_released: Set[int] = set()
         
         # Input buffering
-        self.input_buffer: List[InputAction] = []
-        self.max_buffer_size = 3
+        self.input_buffer: deque = deque(maxlen=3)  # Buffer last 3 inputs
+        self.buffer_timeout = 0.1  # seconds
+        self.last_input_time = 0
         
-        # Input state tracking
-        self.pressed_keys: set = set()
-        self.just_pressed_keys: set = set()
-        self.just_released_keys: set = set()
+        # Movement restrictions
+        self.last_movement_direction = None
+        self.prevented_directions: Set[InputAction] = set()
+        
+        # Key bindings for different control schemes
+        self.key_bindings = self._setup_key_bindings()
         
         # Input callbacks
-        self.action_callbacks: Dict[InputAction, List[Callable]] = {}
+        self.input_callbacks: Dict[InputAction, List[Callable]] = {}
         
-        # Input settings
+        # Input processing state
         self.input_enabled = True
-        self.buffer_enabled = True
-        self.repeat_delay = 0.15  # seconds
-        self.repeat_interval = 0.05  # seconds
+        self.movement_enabled = True
         
-        # Repeat timers
-        self.repeat_timers: Dict[int, float] = {}
-        self.last_repeat_time: Dict[int, float] = {}
-        
-        # Initialize callbacks for all actions
-        for action in InputAction:
-            self.action_callbacks[action] = []
+    def _setup_key_bindings(self) -> Dict[InputAction, KeyBinding]:
+        """Set up key bindings for all control schemes."""
+        bindings = {
+            InputAction.MOVE_UP: KeyBinding(
+                primary_key=pygame.K_UP,
+                secondary_key=pygame.K_w,
+                description="Move snake up"
+            ),
+            InputAction.MOVE_DOWN: KeyBinding(
+                primary_key=pygame.K_DOWN,
+                secondary_key=pygame.K_s,
+                description="Move snake down"
+            ),
+            InputAction.MOVE_LEFT: KeyBinding(
+                primary_key=pygame.K_LEFT,
+                secondary_key=pygame.K_a,
+                description="Move snake left"
+            ),
+            InputAction.MOVE_RIGHT: KeyBinding(
+                primary_key=pygame.K_RIGHT,
+                secondary_key=pygame.K_d,
+                description="Move snake right"
+            ),
+            InputAction.PAUSE: KeyBinding(
+                primary_key=pygame.K_p,
+                secondary_key=pygame.K_SPACE,
+                description="Pause game"
+            ),
+            InputAction.RESUME: KeyBinding(
+                primary_key=pygame.K_p,
+                secondary_key=pygame.K_SPACE,
+                description="Resume game"
+            ),
+            InputAction.RESTART: KeyBinding(
+                primary_key=pygame.K_r,
+                description="Restart game"
+            ),
+            InputAction.QUIT: KeyBinding(
+                primary_key=pygame.K_q,
+                secondary_key=pygame.K_ESCAPE,
+                description="Quit game"
+            ),
+            InputAction.MENU: KeyBinding(
+                primary_key=pygame.K_ESCAPE,
+                secondary_key=pygame.K_m,
+                description="Open menu"
+            ),
+            InputAction.CONFIRM: KeyBinding(
+                primary_key=pygame.K_RETURN,
+                secondary_key=pygame.K_SPACE,
+                description="Confirm selection"
+            ),
+            InputAction.CANCEL: KeyBinding(
+                primary_key=pygame.K_ESCAPE,
+                secondary_key=pygame.K_BACKSPACE,
+                description="Cancel selection"
+            )
+        }
+        return bindings
     
-    def process_events(self, events: List[pygame.event.Event]) -> None:
-        """
-        Process Pygame events and update input state.
-        
-        Args:
-            events: List of Pygame events to process
-        """
+    def set_control_scheme(self, scheme: ControlScheme):
+        """Change the active control scheme."""
+        self.control_scheme = scheme
+        self._update_key_bindings_for_scheme()
+    
+    def _update_key_bindings_for_scheme(self):
+        """Update key bindings based on the selected control scheme."""
+        if self.control_scheme == ControlScheme.WASD:
+            # Make WASD primary for movement
+            self.key_bindings[InputAction.MOVE_UP].primary_key = pygame.K_w
+            self.key_bindings[InputAction.MOVE_DOWN].primary_key = pygame.K_s
+            self.key_bindings[InputAction.MOVE_LEFT].primary_key = pygame.K_a
+            self.key_bindings[InputAction.MOVE_RIGHT].primary_key = pygame.K_d
+            
+            # Make arrow keys secondary
+            self.key_bindings[InputAction.MOVE_UP].secondary_key = pygame.K_UP
+            self.key_bindings[InputAction.MOVE_DOWN].secondary_key = pygame.K_DOWN
+            self.key_bindings[InputAction.MOVE_LEFT].secondary_key = pygame.K_LEFT
+            self.key_bindings[InputAction.MOVE_RIGHT].secondary_key = pygame.K_RIGHT
+        else:
+            # Default: Arrow keys primary, WASD secondary
+            self.key_bindings[InputAction.MOVE_UP].primary_key = pygame.K_UP
+            self.key_bindings[InputAction.MOVE_DOWN].primary_key = pygame.K_DOWN
+            self.key_bindings[InputAction.MOVE_LEFT].primary_key = pygame.K_LEFT
+            self.key_bindings[InputAction.MOVE_RIGHT].primary_key = pygame.K_RIGHT
+            
+            self.key_bindings[InputAction.MOVE_UP].secondary_key = pygame.K_w
+            self.key_bindings[InputAction.MOVE_DOWN].secondary_key = pygame.K_s
+            self.key_bindings[InputAction.MOVE_LEFT].secondary_key = pygame.K_a
+            self.key_bindings[InputAction.MOVE_RIGHT].secondary_key = pygame.K_d
+    
+    def register_callback(self, action: InputAction, callback: Callable):
+        """Register a callback function for a specific input action."""
+        if action not in self.input_callbacks:
+            self.input_callbacks[action] = []
+        self.input_callbacks[action].append(callback)
+    
+    def unregister_callback(self, action: InputAction, callback: Callable):
+        """Unregister a callback function for a specific input action."""
+        if action in self.input_callbacks and callback in self.input_callbacks[action]:
+            self.input_callbacks[action].remove(callback)
+    
+    def handle_event(self, event: pygame.event.Event):
+        """Handle a single pygame event."""
         if not self.input_enabled:
             return
         
-        # Reset just pressed/released keys
-        self.just_pressed_keys.clear()
-        self.just_released_keys.clear()
-        
-        for event in events:
-            if event.type == pygame.KEYDOWN:
-                self._handle_key_down(event.key)
-            elif event.type == pygame.KEYUP:
-                self._handle_key_up(event.key)
-            elif event.type == pygame.QUIT:
-                # Handle window close
-                self._trigger_action(InputAction.QUIT)
+        if event.type == pygame.KEYDOWN:
+            self._handle_key_down(event.key)
+        elif event.type == pygame.KEYUP:
+            self._handle_key_up(event.key)
     
-    def _handle_key_down(self, key: int) -> None:
-        """Handle key press events."""
-        if key not in self.pressed_keys:
-            self.pressed_keys.add(key)
-            self.just_pressed_keys.add(key)
+    def _handle_key_down(self, key: int):
+        """Handle a key press event."""
+        if key not in self.keys_pressed:
+            self.keys_pressed.add(key)
+            self.keys_just_pressed.add(key)
             
-            # Add to input buffer if it's a movement key
-            if key in self.key_mappings:
-                action = self.key_mappings[key]
-                if self._is_movement_action(action):
-                    self._add_to_buffer(action)
-                
-                # Trigger action callback
-                self._trigger_action(action)
+            # Find the action for this key
+            action = self._get_action_for_key(key)
+            if action:
+                self._process_input_action(action, key)
     
-    def _handle_key_up(self, key: int) -> None:
-        """Handle key release events."""
-        if key in self.pressed_keys:
-            self.pressed_keys.remove(key)
-            self.just_released_keys.add(key)
+    def _handle_key_up(self, key: int):
+        """Handle a key release event."""
+        if key in self.keys_pressed:
+            self.keys_pressed.remove(key)
+            self.keys_just_released.add(key)
+    
+    def _get_action_for_key(self, key: int) -> Optional[InputAction]:
+        """Get the input action for a given key."""
+        for action, binding in self.key_bindings.items():
+            if key == binding.primary_key or key == binding.secondary_key:
+                return action
+        return None
+    
+    def _process_input_action(self, action: InputAction, key: int):
+        """Process an input action and trigger callbacks."""
+        current_time = time.time()
+        
+        # Handle movement actions with buffering and direction prevention
+        if action in [InputAction.MOVE_UP, InputAction.MOVE_DOWN, InputAction.MOVE_LEFT, InputAction.MOVE_RIGHT]:
+            if not self.movement_enabled:
+                return
             
-            # Clear repeat timers
-            if key in self.repeat_timers:
-                del self.repeat_timers[key]
-            if key in self.last_repeat_time:
-                del self.last_repeat_time[key]
+            # Check if this direction is prevented (180° turn)
+            if self._is_direction_prevented(action):
+                return
+            
+            # Add to input buffer
+            self._add_to_input_buffer(action, current_time)
+            
+            # Update prevented directions for next frame
+            self._update_prevented_directions(action)
+        
+        # Trigger callbacks
+        if action in self.input_callbacks:
+            for callback in self.input_callbacks[action]:
+                try:
+                    callback(action, key)
+                except Exception as e:
+                    print(f"Error in input callback for {action}: {e}")
     
-    def _is_movement_action(self, action: InputAction) -> bool:
-        """Check if an action is a movement action."""
-        return action in [
-            InputAction.MOVE_UP,
-            InputAction.MOVE_DOWN,
-            InputAction.MOVE_LEFT,
-            InputAction.MOVE_RIGHT
-        ]
+    def _is_direction_prevented(self, action: InputAction) -> bool:
+        """Check if a movement direction is prevented (180° turn)."""
+        if not self.last_movement_direction:
+            return False
+        
+        # Define opposite directions
+        opposites = {
+            InputAction.MOVE_UP: InputAction.MOVE_DOWN,
+            InputAction.MOVE_DOWN: InputAction.MOVE_UP,
+            InputAction.MOVE_LEFT: InputAction.MOVE_RIGHT,
+            InputAction.MOVE_RIGHT: InputAction.MOVE_LEFT
+        }
+        
+        return opposites.get(action) == self.last_movement_direction
     
-    def _add_to_buffer(self, action: InputAction) -> None:
-        """Add an action to the input buffer."""
-        if not self.buffer_enabled:
-            return
+    def _add_to_input_buffer(self, action: InputAction, timestamp: float):
+        """Add an input action to the buffer."""
+        self.input_buffer.append((action, timestamp))
+        self.last_input_time = timestamp
+    
+    def _update_prevented_directions(self, current_direction: InputAction):
+        """Update the list of prevented directions for the next frame."""
+        opposites = {
+            InputAction.MOVE_UP: InputAction.MOVE_DOWN,
+            InputAction.MOVE_DOWN: InputAction.MOVE_UP,
+            InputAction.MOVE_LEFT: InputAction.MOVE_RIGHT,
+            InputAction.MOVE_RIGHT: InputAction.MOVE_LEFT
+        }
         
-        # Remove duplicate consecutive actions
-        if self.input_buffer and self.input_buffer[-1] == action:
-            return
-        
-        # Add to buffer
-        self.input_buffer.append(action)
-        
-        # Limit buffer size
-        if len(self.input_buffer) > self.max_buffer_size:
-            self.input_buffer.pop(0)
+        self.prevented_directions.clear()
+        if current_direction in opposites:
+            self.prevented_directions.add(opposites[current_direction])
     
     def get_buffered_input(self) -> Optional[InputAction]:
-        """
-        Get the next buffered input action.
+        """Get the next buffered input action."""
+        current_time = time.time()
         
-        Returns:
-            The next input action, or None if buffer is empty
-        """
-        if not self.buffer_enabled or not self.input_buffer:
-            return None
+        # Remove expired inputs from buffer
+        while self.input_buffer and (current_time - self.input_buffer[0][1]) > self.buffer_timeout:
+            self.input_buffer.popleft()
         
-        return self.input_buffer.pop(0)
+        if self.input_buffer:
+            action, _ = self.input_buffer.popleft()
+            return action
+        
+        return None
     
-    def clear_buffer(self) -> None:
+    def set_movement_direction(self, direction: InputAction):
+        """Set the current movement direction (used by game logic)."""
+        self.last_movement_direction = direction
+    
+    def clear_input_buffer(self):
         """Clear the input buffer."""
         self.input_buffer.clear()
     
+    def reset_input_state(self):
+        """Reset all input state."""
+        self.keys_pressed.clear()
+        self.keys_just_pressed.clear()
+        self.keys_just_released.clear()
+        self.clear_input_buffer()
+        self.last_movement_direction = None
+        self.prevented_directions.clear()
+    
     def is_key_pressed(self, key: int) -> bool:
-        """Check if a key is currently pressed."""
-        return key in self.pressed_keys
+        """Check if a specific key is currently pressed."""
+        return key in self.keys_pressed
     
     def is_key_just_pressed(self, key: int) -> bool:
-        """Check if a key was just pressed this frame."""
-        return key in self.just_pressed_keys
+        """Check if a specific key was just pressed this frame."""
+        return key in self.keys_just_pressed
     
     def is_key_just_released(self, key: int) -> bool:
-        """Check if a key was just released this frame."""
-        return key in self.just_released_keys
+        """Check if a specific key was just released this frame."""
+        return key in self.keys_just_released
     
-    def is_action_pressed(self, action: InputAction) -> bool:
-        """Check if an action is currently active."""
-        for key, mapped_action in self.key_mappings.items():
-            if mapped_action == action and self.is_key_pressed(key):
-                return True
-        return False
+    def get_pressed_keys(self) -> Set[int]:
+        """Get all currently pressed keys."""
+        return self.keys_pressed.copy()
     
-    def is_action_just_pressed(self, action: InputAction) -> bool:
-        """Check if an action was just triggered this frame."""
-        for key, mapped_action in self.key_mappings.items():
-            if mapped_action == action and self.is_key_just_pressed(key):
-                return True
-        return False
-    
-    def get_movement_direction(self) -> Optional[Direction]:
-        """
-        Get the current movement direction from pressed keys.
+    def update(self):
+        """Update the input manager state (call once per frame)."""
+        # Clear just-pressed and just-released flags
+        self.keys_just_pressed.clear()
+        self.keys_just_released.clear()
         
-        Returns:
-            Direction enum value, or None if no movement keys pressed
-        """
-        if self.is_action_pressed(InputAction.MOVE_UP):
-            return Direction.UP
-        elif self.is_action_pressed(InputAction.MOVE_DOWN):
-            return Direction.DOWN
-        elif self.is_action_pressed(InputAction.MOVE_LEFT):
-            return Direction.LEFT
-        elif self.is_action_pressed(InputAction.MOVE_RIGHT):
-            return Direction.RIGHT
-        
-        return None
+        # Clear expired inputs from buffer
+        current_time = time.time()
+        while self.input_buffer and (current_time - self.input_buffer[0][1]) > self.buffer_timeout:
+            self.input_buffer.popleft()
     
-    def get_movement_direction_from_buffer(self) -> Optional[Direction]:
-        """
-        Get movement direction from the input buffer.
-        
-        Returns:
-            Direction enum value, or None if buffer is empty
-        """
-        if not self.input_buffer:
-            return None
-        
-        # Look for the first movement action in buffer
-        for action in self.input_buffer:
-            if action == InputAction.MOVE_UP:
-                return Direction.UP
-            elif action == InputAction.MOVE_DOWN:
-                return Direction.DOWN
-            elif action == InputAction.MOVE_LEFT:
-                return Direction.LEFT
-            elif action == InputAction.MOVE_RIGHT:
-                return Direction.RIGHT
-        
-        return None
+    def enable_input(self):
+        """Enable input processing."""
+        self.input_enabled = True
     
-    def add_action_callback(self, action: InputAction, callback: Callable) -> None:
-        """Add a callback function for a specific action."""
-        if action not in self.action_callbacks:
-            self.action_callbacks[action] = []
-        
-        self.action_callbacks[action].append(callback)
+    def disable_input(self):
+        """Disable input processing."""
+        self.input_enabled = False
     
-    def remove_action_callback(self, action: InputAction, callback: Callable) -> None:
-        """Remove a callback function for a specific action."""
-        if action in self.action_callbacks and callback in self.action_callbacks[action]:
-            self.action_callbacks[action].remove(callback)
+    def enable_movement(self):
+        """Enable movement input."""
+        self.movement_enabled = True
     
-    def _trigger_action(self, action: InputAction) -> None:
-        """Trigger callbacks for a specific action."""
-        if action in self.action_callbacks:
-            for callback in self.action_callbacks[action]:
-                try:
-                    callback()
-                except Exception as e:
-                    print(f"Error in action callback for {action}: {e}")
+    def disable_movement(self):
+        """Disable movement input."""
+        self.movement_enabled = False
     
-    def update(self, delta_time: float) -> None:
-        """Update input manager (called each frame)."""
-        if not self.input_enabled:
-            return
-        
-        # Handle key repeat for held keys
-        self._update_key_repeat(delta_time)
+    def get_control_scheme(self) -> ControlScheme:
+        """Get the current control scheme."""
+        return self.control_scheme
     
-    def _update_key_repeat(self, delta_time: float) -> None:
-        """Update key repeat timers."""
-        for key in list(self.pressed_keys):
-            if key not in self.repeat_timers:
-                # Start repeat timer
-                self.repeat_timers[key] = 0.0
-                self.last_repeat_time[key] = 0.0
-                continue
-            
-            # Update repeat timer
-            self.repeat_timers[key] += delta_time
-            
-            # Check if it's time to repeat
-            if self.repeat_timers[key] >= self.repeat_delay:
-                repeat_interval = self.repeat_interval
-                
-                if (self.repeat_timers[key] - self.repeat_delay) >= repeat_interval:
-                    # Trigger repeat
-                    if key in self.key_mappings:
-                        action = self.key_mappings[key]
-                        if self._is_movement_action(action):
-                            self._add_to_buffer(action)
-                        
-                        # Update last repeat time
-                        self.last_repeat_time[key] = self.repeat_timers[key]
+    def get_key_bindings(self) -> Dict[InputAction, KeyBinding]:
+        """Get the current key bindings."""
+        return self.key_bindings.copy()
     
-    def set_input_enabled(self, enabled: bool) -> None:
-        """Enable or disable input processing."""
-        self.input_enabled = enabled
-        
-        if not enabled:
-            # Clear all input state
-            self.pressed_keys.clear()
-            self.just_pressed_keys.clear()
-            self.just_released_keys.clear()
-            self.clear_buffer()
+    def get_available_control_schemes(self) -> List[ControlScheme]:
+        """Get all available control schemes."""
+        return list(ControlScheme)
     
-    def set_buffer_enabled(self, enabled: bool) -> None:
-        """Enable or disable input buffering."""
-        self.buffer_enabled = enabled
-        
-        if not enabled:
-            self.clear_buffer()
+    def is_input_enabled(self) -> bool:
+        """Check if input processing is enabled."""
+        return self.input_enabled
     
-    def set_repeat_settings(self, delay: float, interval: float) -> None:
-        """Set key repeat delay and interval."""
-        self.repeat_delay = max(0.0, delay)
-        self.repeat_interval = max(0.01, interval)
+    def is_movement_enabled(self) -> bool:
+        """Check if movement input is enabled."""
+        return self.movement_enabled
     
-    def get_input_state_summary(self) -> Dict:
-        """Get a summary of the current input state."""
+    def get_input_stats(self) -> Dict:
+        """Get input statistics for debugging."""
         return {
-            'pressed_keys': list(self.pressed_keys),
-            'just_pressed_keys': list(self.just_pressed_keys),
-            'just_released_keys': list(self.just_released_keys),
-            'buffer_size': len(self.input_buffer),
-            'buffer_contents': [action.value for action in self.input_buffer],
-            'input_enabled': self.input_enabled,
-            'buffer_enabled': self.buffer_enabled
+            "keys_pressed": len(self.keys_pressed),
+            "input_buffer_size": len(self.input_buffer),
+            "control_scheme": self.control_scheme.value,
+            "input_enabled": self.input_enabled,
+            "movement_enabled": self.movement_enabled,
+            "last_movement_direction": self.last_movement_direction.value if self.last_movement_direction else None,
+            "prevented_directions": [d.value for d in self.prevented_directions]
         }
-    
-    def reset_input_state(self) -> None:
-        """Reset all input state."""
-        self.pressed_keys.clear()
-        self.just_pressed_keys.clear()
-        self.just_released_keys.clear()
-        self.clear_buffer()
-        self.repeat_timers.clear()
-        self.last_repeat_time.clear()
-    
-    def get_available_actions(self) -> List[InputAction]:
-        """Get list of all available input actions."""
-        return list(InputAction)
-    
-    def get_key_for_action(self, action: InputAction) -> Optional[int]:
-        """Get the primary key for a specific action."""
-        for key, mapped_action in self.key_mappings.items():
-            if mapped_action == action:
-                return key
-        return None
-    
-    def get_all_keys_for_action(self, action: InputAction) -> List[int]:
-        """Get all keys that map to a specific action."""
-        keys = []
-        for key, mapped_action in self.key_mappings.items():
-            if mapped_action == action:
-                keys.append(key)
-        return keys
-    
-    def set_key_mapping(self, key: int, action: InputAction) -> None:
-        """Set a custom key mapping."""
-        self.key_mappings[key] = action
-    
-    def remove_key_mapping(self, key: int) -> None:
-        """Remove a key mapping."""
-        if key in self.key_mappings:
-            del self.key_mappings[key]
-    
-    def get_key_mappings(self) -> Dict[int, InputAction]:
-        """Get all current key mappings."""
-        return self.key_mappings.copy()
-    
-    def load_key_mappings(self, mappings: Dict[int, InputAction]) -> None:
-        """Load key mappings from a dictionary."""
-        self.key_mappings.clear()
-        self.key_mappings.update(mappings)
-    
-    def save_key_mappings(self) -> Dict[int, InputAction]:
-        """Save current key mappings to a dictionary."""
-        return self.key_mappings.copy()
