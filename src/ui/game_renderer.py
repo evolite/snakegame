@@ -6,6 +6,8 @@ This module handles the rendering of all game elements:
 - Food rendering
 - Grid and background
 - HUD and UI elements
+- Visual effects and animations
+- Power-ups display
 """
 
 import pygame
@@ -13,7 +15,10 @@ from typing import List, Tuple
 from ..game.grid import Position
 from ..game.snake import Snake
 from ..game.food import Food, FoodType
+from ..game.power_ups import PowerUpsManager
 from .display import DisplayManager
+from .visual_effects import VisualEffectsManager
+from .power_ups_renderer import PowerUpsRenderer
 
 
 class GameRenderer:
@@ -26,12 +31,20 @@ class GameRenderer:
     - Food items
     - HUD elements (score, level, etc.)
     - UI overlays
+    - Visual effects and animations
+    - Power-ups status and indicators
     """
     
     def __init__(self, display_manager: DisplayManager):
         """Initialize the game renderer."""
         self.display = display_manager
         self.cell_size = display_manager.get_cell_size()
+        
+        # Initialize visual effects manager
+        self.visual_effects = VisualEffectsManager()
+        
+        # Initialize power-ups renderer
+        self.power_ups_renderer = PowerUpsRenderer(display_manager)
         
         # Snake rendering settings
         self.snake_colors = {
@@ -56,10 +69,25 @@ class GameRenderer:
         self.background_color = 'black'
         self.hud_background_color = 'navy'
         self.hud_text_color = 'white'
+        
+        # Visual effects settings
+        self.enable_particles = True
+        self.enable_animations = True
+        self.enable_background_effects = True
+        
+        # Power-ups display settings
+        self.show_power_ups_hud = True
+        self.power_ups_hud_position = (10, 10)
+        
+        # Background effect timer
+        self.background_effect_timer = 0.0
+        self.background_effect_interval = 5.0  # Create new effect every 5 seconds
     
     def render_game(self, snake: Snake, food_list: List[Food], 
                    score: int, level: int, food_eaten: int, 
-                   game_time: float, high_score: int) -> None:
+                   game_time: float, high_score: int, 
+                   power_ups_manager: PowerUpsManager = None,
+                   delta_time: float = 0.0, current_difficulty: str = "Medium") -> None:
         """
         Render the complete game state.
         
@@ -71,9 +99,21 @@ class GameRenderer:
             food_eaten: Number of food items eaten
             game_time: Current game time
             high_score: High score
+            power_ups_manager: Power-ups manager for status display
+            delta_time: Time elapsed since last frame
         """
+        # Update visual effects
+        self.visual_effects.update(delta_time)
+        
+        # Update background effects
+        self._update_background_effects(delta_time)
+        
         # Clear the screen
         self.display.clear_screen(self.background_color)
+        
+        # Render background effects
+        if self.enable_background_effects:
+            self._render_background_effects()
         
         # Render the game grid
         self._render_grid()
@@ -84,8 +124,37 @@ class GameRenderer:
         # Render food items
         self._render_food(food_list)
         
+        # Render visual effects (particles, animations)
+        if self.enable_particles:
+            self.visual_effects.draw(self.display.screen)
+        
         # Render HUD
-        self._render_hud(score, level, food_eaten, game_time, high_score)
+        self._render_hud(score, level, food_eaten, game_time, high_score, current_difficulty)
+        
+        # Render power-ups HUD
+        if self.show_power_ups_hud and power_ups_manager:
+            self._render_power_ups_hud(power_ups_manager)
+    
+    def _render_power_ups_hud(self, power_ups_manager: PowerUpsManager) -> None:
+        """Render the power-ups HUD."""
+        self.power_ups_renderer.render_power_ups_hud(
+            power_ups_manager, 
+            self.display.screen, 
+            self.power_ups_hud_position
+        )
+    
+    def _update_background_effects(self, delta_time: float) -> None:
+        """Update background effects timer."""
+        self.background_effect_timer += delta_time
+        if self.background_effect_timer >= self.background_effect_interval:
+            self.background_effect_timer = 0.0
+            if self.enable_background_effects:
+                self.visual_effects.create_background_effect()
+    
+    def _render_background_effects(self) -> None:
+        """Render subtle background effects."""
+        # This will be handled by the visual effects manager
+        pass
     
     def _render_grid(self) -> None:
         """Render the game grid background."""
@@ -257,7 +326,7 @@ class GameRenderer:
         self.display.draw_polygon(points, color)
     
     def _render_hud(self, score: int, level: int, food_eaten: int, 
-                   game_time: float, high_score: int) -> None:
+                   game_time: float, high_score: int, current_difficulty: str = "Medium") -> None:
         """Render the heads-up display."""
         grid_width, grid_height = self.display.get_grid_size()
         hud_y = grid_height
@@ -273,7 +342,7 @@ class GameRenderer:
         
         high_score_text = f"High Score: {high_score}"
         self.display.draw_text(high_score_text, (10, hud_y + 35), 
-                             self.display.small_font, self.hud_text_color)
+                             self.display.font, self.hud_text_color)
         
         # Level and food information
         level_text = f"Level: {level}"
@@ -282,7 +351,7 @@ class GameRenderer:
         
         food_text = f"Food: {food_eaten}"
         self.display.draw_text(food_text, (200, hud_y + 35), 
-                             self.display.small_font, self.hud_text_color)
+                             self.display.font, self.hud_text_color)
         
         # Game time
         time_text = f"Time: {game_time:.1f}s"
@@ -293,7 +362,19 @@ class GameRenderer:
         fps = self.display.get_fps()
         fps_text = f"FPS: {fps:.1f}"
         self.display.draw_text(fps_text, (350, hud_y + 35), 
-                             self.display.small_font, self.hud_text_color)
+                             self.display.font, self.hud_text_color)
+        
+        # Difficulty display
+        difficulty_text = f"Difficulty: {self.current_difficulty}"
+        self.display.draw_text(difficulty_text, (500, hud_y + 35), 
+                             self.display.font, self.hud_text_color)
+        
+        # Visual effects info
+        if self.enable_particles:
+            effect_count = self.visual_effects.get_active_effect_count()
+            effects_text = f"Effects: {effect_count}"
+            self.display.draw_text(effects_text, (500, hud_y + 10), 
+                                 self.display.small_font, self.hud_text_color)
     
     def render_game_over_screen(self, final_score: int, high_score: int, 
                                food_eaten: int, game_time: float) -> None:
@@ -330,12 +411,12 @@ class GameRenderer:
         # Game statistics
         stats_text = f"Food Eaten: {food_eaten} | Time: {game_time:.1f}s"
         self.display.draw_text(stats_text, (center_x, center_y + 40), 
-                             self.display.small_font, 'light_gray', True)
+                             self.display.font, 'light_gray', True)
         
         # Instructions
         instruction_text = "Press R to restart or Q to quit"
         self.display.draw_text(instruction_text, (center_x, center_y + 70), 
-                             self.display.small_font, 'light_gray', True)
+                             self.display.font, 'light_gray', True)
     
     def render_pause_screen(self) -> None:
         """Render the pause screen."""
@@ -356,7 +437,7 @@ class GameRenderer:
         # Instructions
         instruction_text = "Press P to resume or Q to quit"
         self.display.draw_text(instruction_text, (center_x, center_y + 20), 
-                             self.display.small_font, 'light_gray', True)
+                             self.display.font, 'light_gray', True)
     
     def render_menu_screen(self, title: str, options: List[str], 
                           selected_index: int = 0) -> None:
@@ -379,4 +460,56 @@ class GameRenderer:
         # Instructions
         instruction_text = "Use arrow keys to navigate, Enter to select"
         self.display.draw_text(instruction_text, (center_x, center_y + 80), 
-                             self.display.small_font, 'light_gray', True)
+                             self.display.font, 'light_gray', True)
+    
+    # Visual effects integration methods
+    
+    def create_food_collection_effect(self, position: Tuple[float, float]) -> None:
+        """Create a particle explosion effect when food is collected."""
+        if self.enable_particles:
+            self.visual_effects.create_food_collection_effect(position)
+    
+    def create_power_up_effect(self, position: Tuple[float, float]) -> None:
+        """Create a power-up activation effect."""
+        if self.enable_particles:
+            self.visual_effects.create_power_up_effect(position)
+    
+    def create_score_popup(self, position: Tuple[float, float], score: int) -> None:
+        """Create a score popup animation."""
+        if self.enable_animations:
+            self.visual_effects.create_score_popup(position, score)
+    
+    def create_screen_transition(self) -> None:
+        """Create a screen transition effect."""
+        if self.enable_animations:
+            self.visual_effects.create_screen_transition()
+    
+    def set_visual_effects_enabled(self, particles: bool = None, animations: bool = None, 
+                                  background_effects: bool = None) -> None:
+        """Enable or disable visual effects."""
+        if particles is not None:
+            self.enable_particles = particles
+        if animations is not None:
+            self.enable_animations = animations
+        if background_effects is not None:
+            self.enable_background_effects = background_effects
+    
+    def set_power_ups_display_enabled(self, enabled: bool) -> None:
+        """Enable or disable power-ups HUD display."""
+        self.show_power_ups_hud = enabled
+    
+    def set_power_ups_hud_position(self, position: Tuple[int, int]) -> None:
+        """Set the position of the power-ups HUD."""
+        self.power_ups_hud_position = position
+    
+    def clear_all_visual_effects(self) -> None:
+        """Clear all active visual effects."""
+        self.visual_effects.clear_all_effects()
+    
+    def get_visual_effects_manager(self) -> VisualEffectsManager:
+        """Get the visual effects manager for advanced configuration."""
+        return self.visual_effects
+    
+    def get_power_ups_renderer(self) -> PowerUpsRenderer:
+        """Get the power-ups renderer for advanced configuration."""
+        return self.power_ups_renderer

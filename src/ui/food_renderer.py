@@ -6,11 +6,13 @@ This module provides specialized rendering for food items with:
 - Visual effects for different food types
 - Collection animations
 - Particle effects
+- Enhanced visual feedback
 """
 
 import pygame
 import math
-from typing import List, Tuple, Dict
+import random
+from typing import List, Tuple, Dict, Optional
 from ..game.grid import Position
 from ..game.food import Food, FoodType
 from .display import DisplayManager
@@ -38,37 +40,43 @@ class FoodRenderer:
                 'color': 'red',
                 'animation': 'pulse',
                 'particles': False,
-                'glow': False
+                'glow': False,
+                'collection_effect': 'simple_explosion'
             },
             FoodType.BONUS: {
                 'color': 'gold',
                 'animation': 'rotate',
                 'particles': True,
-                'glow': True
+                'glow': True,
+                'collection_effect': 'golden_burst'
             },
             FoodType.SPEED_UP: {
                 'color': 'blue',
                 'animation': 'flash',
                 'particles': True,
-                'glow': True
+                'glow': True,
+                'collection_effect': 'lightning_burst'
             },
             FoodType.SPEED_DOWN: {
                 'color': 'purple',
                 'animation': 'slow_pulse',
                 'particles': False,
-                'glow': False
+                'glow': False,
+                'collection_effect': 'slow_motion'
             },
             FoodType.DOUBLE_POINTS: {
                 'color': 'green',
                 'animation': 'bounce',
                 'particles': True,
-                'glow': True
+                'glow': True,
+                'collection_effect': 'multiplier_burst'
             },
             FoodType.INVINCIBILITY: {
                 'color': 'white',
                 'animation': 'sparkle',
                 'particles': True,
-                'glow': True
+                'glow': True,
+                'collection_effect': 'invincibility_shield'
             }
         }
         
@@ -78,6 +86,12 @@ class FoodRenderer:
         
         # Collection animation
         self.collection_animations = []
+        
+        # Enhanced visual effects
+        self.enable_particles = True
+        self.enable_glow = True
+        self.enable_collection_effects = True
+        self.enable_food_animations = True
     
     def update(self, delta_time: float) -> None:
         """Update the food renderer."""
@@ -107,97 +121,120 @@ class FoodRenderer:
         """Render a single food item with animations."""
         position = food.get_position()
         food_type = food.get_effect_type()
-        effects = self.food_effects[food_type]
         
-        # Get base color
-        color = effects['color']
+        # Get food properties
+        properties = self.food_effects.get(food_type, self.food_effects[FoodType.NORMAL])
+        color = properties['color']
+        animation = properties['animation']
         
         # Calculate center position
         rect = self.display.get_grid_rect(position.x, position.y)
         center = rect.center
         
-        # Apply animation based on food type
-        if effects['animation'] == 'pulse':
-            self._render_pulsing_food(center, color, food_type)
-        elif effects['animation'] == 'rotate':
-            self._render_rotating_food(center, color, food_type)
-        elif effects['animation'] == 'flash':
-            self._render_flashing_food(center, color, food_type)
-        elif effects['animation'] == 'slow_pulse':
-            self._render_slow_pulsing_food(center, color, food_type)
-        elif effects['animation'] == 'bounce':
-            self._render_bouncing_food(center, color, food_type)
-        elif effects['animation'] == 'sparkle':
-            self._render_sparkling_food(center, color, food_type)
+        # Apply animation effects
+        if self.enable_food_animations:
+            center = self._apply_food_animation(center, animation, food_type)
+        
+        # Draw food based on type
+        if food_type == FoodType.NORMAL:
+            self._render_normal_food(center, color)
+        elif food_type == FoodType.BONUS:
+            self._render_bonus_food(center, color)
+        elif food_type == FoodType.SPEED_UP:
+            self._render_speed_up_food(center, color)
+        elif food_type == FoodType.SPEED_DOWN:
+            self._render_speed_down_food(center, color)
+        elif food_type == FoodType.DOUBLE_POINTS:
+            self._render_double_points_food(center, color)
+        elif food_type == FoodType.INVINCIBILITY:
+            self._render_invincibility_food(center, color)
         else:
-            self._render_static_food(center, color, food_type)
+            self._render_normal_food(center, color)
         
         # Add glow effect if enabled
-        if effects['glow']:
-            self._add_food_glow(center, color)
+        if self.enable_glow and properties['glow']:
+            self._add_food_glow(center, color, food_type)
         
         # Add particles if enabled
-        if effects['particles']:
-            self._add_food_particles(center, color)
+        if self.enable_particles and properties['particles']:
+            self._add_food_particles(center, food_type)
     
-    def _render_pulsing_food(self, center: Tuple[int, int], color: str, food_type: FoodType) -> None:
-        """Render food with a pulsing animation."""
-        # Calculate pulse size
-        pulse_factor = (math.sin(self.animation_timer * 8) + 1) / 2
-        base_size = self.cell_size // 6
-        pulse_size = int(base_size * (0.8 + 0.4 * pulse_factor))
+    def _apply_food_animation(self, center: Tuple[int, int], animation: str, food_type: FoodType) -> Tuple[int, int]:
+        """Apply animation effects to food position."""
+        x, y = center
         
-        # Draw pulsing circle
-        self.display.draw_circle(center, pulse_size, color, True)
+        if animation == 'pulse':
+            # Simple pulse effect
+            pulse_factor = (math.sin(self.animation_timer * 8) + 1) / 2
+            scale = 0.8 + 0.2 * pulse_factor
+            return center
         
-        # Add outline
-        self.display.draw_circle(center, pulse_size, 'white', False, 1)
+        elif animation == 'rotate':
+            # Rotation effect
+            angle = self.animation_timer * 4
+            radius = 3
+            offset_x = math.cos(angle) * radius
+            offset_y = math.sin(angle) * radius
+            return (int(x + offset_x), int(y + offset_y))
+        
+        elif animation == 'flash':
+            # Flash effect
+            flash_factor = (math.sin(self.animation_timer * 12) + 1) / 2
+            if flash_factor > 0.7:
+                return center
+            else:
+                return center
+        
+        elif animation == 'slow_pulse':
+            # Slow pulse effect
+            pulse_factor = (math.sin(self.animation_timer * 3) + 1) / 2
+            scale = 0.7 + 0.3 * pulse_factor
+            return center
+        
+        elif animation == 'bounce':
+            # Bounce effect
+            bounce_factor = abs(math.sin(self.animation_timer * 6))
+            offset_y = int(bounce_factor * 4)
+            return (x, y - offset_y)
+        
+        elif animation == 'sparkle':
+            # Sparkle effect
+            sparkle_factor = (math.sin(self.animation_timer * 10) + 1) / 2
+            if sparkle_factor > 0.8:
+                return center
+            else:
+                return center
+        
+        return center
     
-    def _render_rotating_food(self, center: Tuple[int, int], color: str, food_type: FoodType) -> None:
-        """Render food with a rotating animation."""
-        # Calculate rotation angle
-        rotation_angle = self.animation_timer * 360  # degrees per second
-        
-        # Draw star shape with rotation
-        self._render_rotating_star(center, color, rotation_angle)
+    def _render_normal_food(self, center: Tuple[int, int], color: str) -> None:
+        """Render normal food item."""
+        radius = max(3, self.cell_size // 6)
+        self.display.draw_circle(center, radius, color)
     
-    def _render_rotating_star(self, center: Tuple[int, int], color: str, angle: float) -> None:
-        """Render a rotating star."""
+    def _render_bonus_food(self, center: Tuple[int, int], color: str) -> None:
+        """Render bonus food with star shape."""
         size = self.cell_size // 4
         points = []
         
-        # Create star points with rotation
+        # Create star points
         for i in range(10):
-            point_angle = (i * 36 + angle) * math.pi / 180
+            angle = i * 36 * math.pi / 180
             if i % 2 == 0:
                 radius = size
             else:
                 radius = size // 2
             
-            x = center[0] + radius * math.cos(point_angle)
-            y = center[1] + radius * math.sin(point_angle)
+            x = center[0] + radius * math.cos(angle)
+            y = center[1] + radius * math.sin(angle)
             points.append((x, y))
         
-        # Draw rotating star
+        # Draw star
         if len(points) >= 3:
             self.display.draw_polygon(points, color)
     
-    def _render_flashing_food(self, center: Tuple[int, int], color: str, food_type: FoodType) -> None:
-        """Render food with a flashing animation."""
-        # Calculate flash intensity
-        flash_factor = (math.sin(self.animation_timer * 12) + 1) / 2
-        
-        # Alternate between color and white
-        if flash_factor > 0.5:
-            draw_color = 'white'
-        else:
-            draw_color = color
-        
-        # Draw lightning bolt
-        self._render_lightning_bolt(center, draw_color)
-    
-    def _render_lightning_bolt(self, center: Tuple[int, int], color: str) -> None:
-        """Render a lightning bolt shape."""
+    def _render_speed_up_food(self, center: Tuple[int, int], color: str) -> None:
+        """Render speed up food with lightning bolt."""
         size = self.cell_size // 4
         points = [
             (center[0], center[1] - size),
@@ -208,47 +245,21 @@ class FoodRenderer:
         
         self.display.draw_polygon(points, color)
     
-    def _render_slow_pulsing_food(self, center: Tuple[int, int], color: str, food_type: FoodType) -> None:
-        """Render food with a slow pulsing animation."""
-        # Calculate slow pulse size
-        pulse_factor = (math.sin(self.animation_timer * 2) + 1) / 2
-        base_size = self.cell_size // 6
-        pulse_size = int(base_size * (0.7 + 0.6 * pulse_factor))
+    def _render_speed_down_food(self, center: Tuple[int, int], color: str) -> None:
+        """Render speed down food with snail symbol."""
+        size = self.cell_size // 4
         
-        # Draw slow pulsing circle
-        self.display.draw_circle(center, pulse_size, color, True)
-        
-        # Add spiral pattern
-        self._render_spiral_pattern(center, color, pulse_size)
+        # Draw snail shell (spiral)
+        self.display.draw_circle(center, size, color)
+        self.display.draw_circle(center, size//2, self.display.get_color('black'))
     
-    def _render_spiral_pattern(self, center: Tuple[int, int], color: str, size: int) -> None:
-        """Render a spiral pattern."""
-        # Draw concentric circles
-        for i in range(3):
-            circle_size = size - (i * 2)
-            if circle_size > 0:
-                self.display.draw_circle(center, circle_size, 'white', False, 1)
+    def _render_double_points_food(self, center: Tuple[int, int], color: str) -> None:
+        """Render double points food with 2x symbol."""
+        text = "2×"
+        self.display.draw_text(text, center, self.display.large_font, color, True)
     
-    def _render_bouncing_food(self, center: Tuple[int, int], color: str, food_type: FoodType) -> None:
-        """Render food with a bouncing animation."""
-        # Calculate bounce offset
-        bounce_factor = abs(math.sin(self.animation_timer * 6))
-        bounce_offset = int(bounce_factor * 4)
-        
-        # Draw bouncing 2x symbol
-        bounce_center = (center[0], center[1] - bounce_offset)
-        self.display.draw_text("2×", bounce_center, self.display.large_font, color, True)
-    
-    def _render_sparkling_food(self, center: Tuple[int, int], color: str, food_type: FoodType) -> None:
-        """Render food with a sparkling animation."""
-        # Draw base shield
-        self._render_shield(center, color)
-        
-        # Add sparkles
-        self._add_sparkles(center, color)
-    
-    def _render_shield(self, center: Tuple[int, int], color: str) -> None:
-        """Render a shield shape."""
+    def _render_invincibility_food(self, center: Tuple[int, int], color: str) -> None:
+        """Render invincibility food with shield symbol."""
         size = self.cell_size // 4
         points = [
             (center[0], center[1] - size),
@@ -261,169 +272,267 @@ class FoodRenderer:
         
         self.display.draw_polygon(points, color)
     
-    def _add_sparkles(self, center: Tuple[int, int], color: str) -> None:
-        """Add sparkle effects around the food."""
-        sparkle_count = 6
-        sparkle_size = 2
-        
-        for i in range(sparkle_count):
-            angle = (i * 360 / sparkle_count + self.animation_timer * 180) * math.pi / 180
-            distance = self.cell_size // 3
-            
-            sparkle_x = center[0] + distance * math.cos(angle)
-            sparkle_y = center[1] + distance * math.sin(angle)
-            sparkle_pos = (int(sparkle_x), int(sparkle_y))
-            
-            # Alternate sparkle colors
-            sparkle_color = 'yellow' if i % 2 == 0 else 'white'
-            self.display.draw_circle(sparkle_pos, sparkle_size, sparkle_color)
-    
-    def _render_static_food(self, center: Tuple[int, int], color: str, food_type: FoodType) -> None:
-        """Render static food (fallback)."""
-        radius = self.cell_size // 6
-        self.display.draw_circle(center, radius, color, True)
-        self.display.draw_circle(center, radius, 'white', False, 1)
-    
-    def _add_food_glow(self, center: Tuple[int, int], color: str) -> None:
+    def _add_food_glow(self, center: Tuple[int, int], color: str, food_type: FoodType) -> None:
         """Add a glow effect around the food."""
+        if not self.enable_glow:
+            return
+        
         # Create glow surface
         glow_size = self.cell_size // 2
-        glow_rect = pygame.Rect(
-            center[0] - glow_size, center[1] - glow_size,
-            glow_size * 2, glow_size * 2
-        )
+        glow_rect = pygame.Rect(center[0] - glow_size, center[1] - glow_size, 
+                               glow_size * 2, glow_size * 2)
+        glow_surface = pygame.Surface(glow_rect.size, pygame.SRCALPHA)
         
-        glow_surface = pygame.Surface(glow_rect.size)
-        glow_surface.set_alpha(64)
-        glow_surface.fill(self.display.get_color(color))
+        # Add multiple glow layers
+        for i in range(3):
+            alpha = 60 - i * 20
+            if alpha > 0:
+                glow_color = self.display.get_color(color)
+                glow_color = (*glow_color, alpha)
+                pygame.draw.circle(glow_surface, glow_color, 
+                                 (glow_size, glow_size), glow_size - i * 2)
         
-        # Draw glow
         self.display.screen.blit(glow_surface, glow_rect)
     
-    def _add_food_particles(self, center: Tuple[int, int], color: str) -> None:
-        """Add particle effects around the food."""
-        # Create new particles occasionally
-        if len(self.particles) < 10 and self.animation_timer % 0.2 < 0.016:
+    def _add_food_particles(self, center: Tuple[int, int], food_type: FoodType) -> None:
+        """Add particles around the food."""
+        if not self.enable_particles:
+            return
+        
+        # Create particles based on food type
+        particle_count = 3
+        for _ in range(particle_count):
+            # Random position around food
+            angle = random.uniform(0, 2 * math.pi)
+            distance = random.uniform(5, 15)
+            x = center[0] + math.cos(angle) * distance
+            y = center[1] + math.sin(angle) * distance
+            
+            # Random velocity
+            vx = random.uniform(-20, 20)
+            vy = random.uniform(-20, 20)
+            
+            # Random life
+            life = random.uniform(0.5, 1.5)
+            
+            # Color based on food type
+            if food_type == FoodType.BONUS:
+                color = (255, 215, 0)  # Gold
+            elif food_type == FoodType.SPEED_UP:
+                color = (0, 0, 255)    # Blue
+            elif food_type == FoodType.DOUBLE_POINTS:
+                color = (0, 255, 0)    # Green
+            elif food_type == FoodType.INVINCIBILITY:
+                color = (255, 255, 255)  # White
+            else:
+                color = (255, 255, 0)    # Yellow
+            
+            # Create particle
             particle = {
-                'x': center[0],
-                'y': center[1],
-                'vx': (math.random() - 0.5) * 2,
-                'vy': (math.random() - 0.5) * 2,
-                'life': self.particle_lifetime,
-                'color': color,
-                'size': 1
+                'x': x, 'y': y, 'vx': vx, 'vy': vy,
+                'life': life, 'max_life': life,
+                'color': color, 'size': random.uniform(1, 3)
             }
             self.particles.append(particle)
     
     def _update_particles(self, delta_time: float) -> None:
-        """Update particle positions and lifetimes."""
-        for particle in self.particles[:]:
+        """Update particle positions and life."""
+        alive_particles = []
+        
+        for particle in self.particles:
             # Update position
-            particle['x'] += particle['vx']
-            particle['y'] += particle['vy']
+            particle['x'] += particle['vx'] * delta_time
+            particle['y'] += particle['vy'] * delta_time
             
             # Update life
             particle['life'] -= delta_time
             
-            # Remove dead particles
-            if particle['life'] <= 0:
-                self.particles.remove(particle)
+            # Keep alive particles
+            if particle['life'] > 0:
+                alive_particles.append(particle)
+        
+        self.particles = alive_particles
     
     def _render_particles(self) -> None:
         """Render all particles."""
         for particle in self.particles:
-            # Calculate alpha based on remaining life
-            alpha = int(255 * (particle['life'] / self.particle_lifetime))
-            
-            # Create particle surface
-            particle_surface = pygame.Surface((particle['size'] * 2, particle['size'] * 2))
-            particle_surface.set_alpha(alpha)
-            particle_surface.fill(self.display.get_color(particle['color']))
-            
-            # Draw particle
-            pos = (int(particle['x'] - particle['size']), int(particle['y'] - particle['size']))
-            self.display.screen.blit(particle_surface, pos)
+            if particle['life'] > 0:
+                # Calculate alpha based on remaining life
+                alpha = int(255 * (particle['life'] / particle['max_life']))
+                
+                # Create particle surface with alpha
+                size = int(particle['size'] * 2)
+                particle_surface = pygame.Surface((size, size), pygame.SRCALPHA)
+                pygame.draw.circle(particle_surface, (*particle['color'], alpha), 
+                                 (size//2, size//2), int(particle['size']))
+                
+                # Draw particle
+                self.display.screen.blit(particle_surface, 
+                                       (int(particle['x'] - particle['size']), 
+                                        int(particle['y'] - particle['size'])))
     
-    def add_collection_animation(self, position: Position, food_type: FoodType) -> None:
-        """Add a collection animation when food is eaten."""
+    def create_collection_effect(self, food: Food, position: Tuple[int, int]) -> None:
+        """Create a collection effect when food is eaten."""
+        if not self.enable_collection_effects:
+            return
+        
+        food_type = food.get_effect_type()
+        properties = self.food_effects.get(food_type, self.food_effects[FoodType.NORMAL])
+        effect_type = properties['collection_effect']
+        
+        # Create collection animation
         animation = {
+            'type': effect_type,
             'position': position,
-            'food_type': food_type,
-            'timer': 0.0,
-            'duration': 0.5,
+            'elapsed': 0.0,
+            'duration': 1.0,
             'particles': []
         }
         
-        # Create collection particles
-        for _ in range(8):
-            particle = {
-                'x': position.x * self.cell_size + self.cell_size // 2,
-                'y': position.y * self.cell_size + self.cell_size // 2,
-                'vx': (math.random() - 0.5) * 4,
-                'vy': (math.random() - 0.5) * 4,
-                'life': 0.5,
-                'color': self.food_effects[food_type]['color'],
-                'size': 2
-            }
-            animation['particles'].append(particle)
+        # Add effect-specific particles
+        if effect_type == 'golden_burst':
+            self._add_golden_burst_particles(animation)
+        elif effect_type == 'lightning_burst':
+            self._add_lightning_burst_particles(animation)
+        elif effect_type == 'multiplier_burst':
+            self._add_multiplier_burst_particles(animation)
+        elif effect_type == 'invincibility_shield':
+            self._add_invincibility_shield_particles(animation)
+        else:
+            self._add_simple_explosion_particles(animation)
         
         self.collection_animations.append(animation)
     
+    def _add_golden_burst_particles(self, animation: Dict) -> None:
+        """Add golden burst particles."""
+        for _ in range(20):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(50, 150)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            
+            particle = {
+                'x': animation['position'][0], 'y': animation['position'][1],
+                'vx': vx, 'vy': vy, 'life': 1.0, 'max_life': 1.0,
+                'color': (255, 215, 0), 'size': random.uniform(2, 5)
+            }
+            animation['particles'].append(particle)
+    
+    def _add_lightning_burst_particles(self, animation: Dict) -> None:
+        """Add lightning burst particles."""
+        for _ in range(15):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(80, 200)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            
+            particle = {
+                'x': animation['position'][0], 'y': animation['position'][1],
+                'vx': vx, 'vy': vy, 'life': 0.8, 'max_life': 0.8,
+                'color': (0, 255, 255), 'size': random.uniform(1, 4)
+            }
+            animation['particles'].append(particle)
+    
+    def _add_multiplier_burst_particles(self, animation: Dict) -> None:
+        """Add multiplier burst particles."""
+        for _ in range(25):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(60, 180)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            
+            particle = {
+                'x': animation['position'][0], 'y': animation['position'][1],
+                'vx': vx, 'vy': vy, 'life': 1.2, 'max_life': 1.2,
+                'color': (0, 255, 0), 'size': random.uniform(2, 6)
+            }
+            animation['particles'].append(particle)
+    
+    def _add_invincibility_shield_particles(self, animation: Dict) -> None:
+        """Add invincibility shield particles."""
+        for _ in range(30):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(40, 120)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            
+            particle = {
+                'x': animation['position'][0], 'y': animation['position'][1],
+                'vx': vx, 'vy': vy, 'life': 1.5, 'max_life': 1.5,
+                'color': (255, 255, 255), 'size': random.uniform(1, 3)
+            }
+            animation['particles'].append(particle)
+    
+    def _add_simple_explosion_particles(self, animation: Dict) -> None:
+        """Add simple explosion particles."""
+        for _ in range(15):
+            angle = random.uniform(0, 2 * math.pi)
+            speed = random.uniform(30, 100)
+            vx = math.cos(angle) * speed
+            vy = math.sin(angle) * speed
+            
+            particle = {
+                'x': animation['position'][0], 'y': animation['position'][1],
+                'vx': vx, 'vy': vy, 'life': 0.8, 'max_life': 0.8,
+                'color': (255, 255, 0), 'size': random.uniform(1, 3)
+            }
+            animation['particles'].append(particle)
+    
     def _update_collection_animations(self, delta_time: float) -> None:
-        """Update collection animation timers."""
-        for animation in self.collection_animations[:]:
-            animation['timer'] += delta_time
+        """Update collection animations."""
+        alive_animations = []
+        
+        for animation in self.collection_animations:
+            animation['elapsed'] += delta_time
             
-            # Update particles
-            for particle in animation['particles']:
-                particle['x'] += particle['vx']
-                particle['y'] += particle['vy']
-                particle['life'] -= delta_time
-            
-            # Remove dead animations
-            if animation['timer'] >= animation['duration']:
-                self.collection_animations.remove(animation)
+            if animation['elapsed'] < animation['duration']:
+                # Update particles
+                alive_particles = []
+                for particle in animation['particles']:
+                    particle['x'] += particle['vx'] * delta_time
+                    particle['y'] += particle['vy'] * delta_time
+                    particle['life'] -= delta_time
+                    
+                    if particle['life'] > 0:
+                        alive_particles.append(particle)
+                
+                animation['particles'] = alive_particles
+                alive_animations.append(animation)
+        
+        self.collection_animations = alive_animations
     
     def _render_collection_animations(self) -> None:
         """Render collection animations."""
         for animation in self.collection_animations:
-            # Calculate animation progress
-            progress = animation['timer'] / animation['duration']
-            
-            # Render particles
             for particle in animation['particles']:
                 if particle['life'] > 0:
                     # Calculate alpha based on remaining life
-                    alpha = int(255 * (particle['life'] / 0.5))
+                    alpha = int(255 * (particle['life'] / particle['max_life']))
                     
-                    # Create particle surface
-                    particle_surface = pygame.Surface((particle['size'] * 2, particle['size'] * 2))
-                    particle_surface.set_alpha(alpha)
-                    particle_surface.fill(self.display.get_color(particle['color']))
+                    # Create particle surface with alpha
+                    size = int(particle['size'] * 2)
+                    particle_surface = pygame.Surface((size, size), pygame.SRCALPHA)
+                    pygame.draw.circle(particle_surface, (*particle['color'], alpha), 
+                                     (size//2, size//2), int(particle['size']))
                     
                     # Draw particle
-                    pos = (int(particle['x'] - particle['size']), int(particle['y'] - particle['size']))
-                    self.display.screen.blit(particle_surface, pos)
+                    self.display.screen.blit(particle_surface, 
+                                           (int(particle['x'] - particle['size']), 
+                                            int(particle['y'] - particle['size'])))
     
-    def set_animation_speed(self, speed: float) -> None:
-        """Set the animation speed multiplier."""
-        self.animation_speed = speed
+    def set_effects_enabled(self, particles: bool = None, glow: bool = None, 
+                           collection_effects: bool = None, animations: bool = None) -> None:
+        """Enable or disable visual effects."""
+        if particles is not None:
+            self.enable_particles = particles
+        if glow is not None:
+            self.enable_glow = glow
+        if collection_effects is not None:
+            self.enable_collection_effects = collection_effects
+        if animations is not None:
+            self.enable_food_animations = animations
     
-    def enable_particles(self, enabled: bool) -> None:
-        """Enable or disable particle effects."""
-        for food_type in self.food_effects:
-            self.food_effects[food_type]['particles'] = enabled
-    
-    def enable_glow(self, enabled: bool) -> None:
-        """Enable or disable glow effects."""
-        for food_type in self.food_effects:
-            self.food_effects[food_type]['glow'] = enabled
-    
-    def get_food_effects(self) -> Dict[FoodType, Dict]:
-        """Get the current food effects configuration."""
-        return self.food_effects.copy()
-    
-    def set_food_effect(self, food_type: FoodType, effect: str, value: any) -> None:
-        """Set a specific food effect property."""
-        if food_type in self.food_effects and effect in self.food_effects[food_type]:
-            self.food_effects[food_type][effect] = value
+    def clear_all_effects(self) -> None:
+        """Clear all particles and animations."""
+        self.particles.clear()
+        self.collection_animations.clear()

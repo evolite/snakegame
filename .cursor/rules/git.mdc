@@ -1,0 +1,6 @@
+---
+description: Always update git by committing and pushing your changes as you work
+globs:
+alwaysApply: false
+---
+

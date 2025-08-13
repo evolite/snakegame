@@ -13,6 +13,7 @@ from src.ui.display import DisplayManager
 from src.ui.game_renderer import GameRenderer
 from src.ui.input_manager import InputManager, ControlScheme
 from src.ui.game_controller import GameController
+from src.ui.menu_manager import MenuManager, MenuState
 
 
 class SnakeGame:
@@ -44,6 +45,7 @@ class SnakeGame:
         self.game_logic = GameLogic(config)
         self.input_manager = InputManager(self.display_manager)
         self.game_controller = GameController(self.game_logic, self.input_manager)
+        self.menu_manager = MenuManager(self.input_manager)
         
         # Initialize renderers
         self.game_renderer = GameRenderer(self.display_manager)
@@ -66,6 +68,9 @@ class SnakeGame:
         # Game state
         self.current_screen = "game"  # game, menu, game_over, pause
         
+        # Setup menu callbacks
+        self._setup_menu_callbacks()
+        
     def _setup_input_callbacks(self):
         """Set up input callbacks for the main game."""
         # Game control callbacks
@@ -77,12 +82,28 @@ class SnakeGame:
             "menu", 
             self._handle_menu
         )
+    
+    def _setup_menu_callbacks(self):
+        """Set up callbacks for menu actions."""
+        self.menu_manager.register_callback("new_game", self._handle_new_game)
+        self.menu_manager.register_callback("settings", self._handle_settings)
+        self.menu_manager.register_callback("quit", self._handle_quit)
+        self.menu_manager.register_callback("retry", self._handle_retry)
+        self.menu_manager.register_callback("main_menu", self._handle_main_menu)
+        self.menu_manager.register_callback("resume", self._handle_resume)
+        self.menu_manager.register_callback("restart", self._handle_restart)
+        self.menu_manager.register_callback("back", self._handle_back)
+        self.menu_manager.register_callback("difficulty_level", self._handle_difficulty_level)
+        self.menu_manager.register_callback("difficulty_easy", self._handle_difficulty_easy)
+        self.menu_manager.register_callback("difficulty_medium", self._handle_difficulty_medium)
+        self.menu_manager.register_callback("difficulty_hard", self._handle_difficulty_hard)
         
     def start(self):
         """Start the game."""
         print("Starting Snake Game...")
         self.running = True
-        self.game_controller.start_game()
+        self.menu_manager.set_menu_state(MenuState.START_MENU)
+        self.current_screen = "menu"
         self.game_loop.start()
         
         # Main game loop
@@ -114,17 +135,21 @@ class SnakeGame:
         if not self.running:
             return
         
-        # Update game controller
-        self.game_controller.update(delta_time)
+        # Update menu manager
+        self.menu_manager.update(delta_time)
         
-        # Update game state
-        game_status = self.game_controller.get_game_status()
-        if game_status == "game_over":
-            self.current_screen = "game_over"
-        elif game_status == "paused":
-            self.current_screen = "pause"
-        elif game_status == "active":
-            self.current_screen = "game"
+        # Update game controller if in game
+        if self.current_screen == "game":
+            self.game_controller.update(delta_time)
+            
+            # Check game state changes
+            game_status = self.game_controller.get_game_status()
+            if game_status == "game_over":
+                self.current_screen = "game_over"
+                self.menu_manager.set_menu_state(MenuState.GAME_OVER)
+            elif game_status == "paused":
+                self.current_screen = "pause"
+                self.menu_manager.set_menu_state(MenuState.PAUSE_MENU)
     
     def physics_update(self, delta_time: float):
         """Update physics (called by game loop)."""
@@ -163,12 +188,15 @@ class SnakeGame:
         
         # Render game elements
         self.game_renderer.render_game(
-            snake_body=self.game_logic.get_snake_body(),
-            food_positions=self.game_logic.get_food_positions(),
+            snake=self.game_logic.snake,
+            food_list=self.game_logic.food_manager.get_food_list(),
             score=self.game_logic.get_score(),
-            high_score=self.game_logic.get_high_score(),
             level=self.game_logic.get_level(),
-            game_time=self.game_logic.get_game_time()
+            food_eaten=self.game_logic.get_food_eaten(),
+            game_time=self.game_logic.get_game_time(),
+            high_score=self.game_logic.get_high_score(),
+            power_ups_manager=self.game_logic.power_ups_manager,
+            current_difficulty=self.game_logic.get_current_difficulty()
         )
     
     def _render_pause_screen(self):
@@ -189,7 +217,12 @@ class SnakeGame:
     
     def _render_menu_screen(self):
         """Render the menu screen."""
-        self.game_renderer.render_menu_screen()
+        current_state = self.menu_manager.get_current_state()
+        title = self.menu_manager.get_menu_title()
+        options = [opt.text for opt in self.menu_manager.get_current_options()]
+        selected_index = self.menu_manager.get_selected_index()
+        
+        self.game_renderer.render_menu_screen(title, options, selected_index)
     
     def _handle_quit(self, action, key):
         """Handle quit input."""
@@ -202,20 +235,86 @@ class SnakeGame:
         elif self.current_screen == "pause":
             self.game_controller.resume_game()
     
+    def _handle_new_game(self):
+        """Handle new game menu action."""
+        self.game_controller.start_game()
+        self.current_screen = "game"
+        self.menu_manager.disable_menu()
+    
+    def _handle_settings(self):
+        """Handle settings menu action."""
+        self.menu_manager.set_menu_state(MenuState.SETTINGS_MENU)
+    
+    def _handle_retry(self):
+        """Handle retry menu action."""
+        self.game_controller.restart_game()
+        self.current_screen = "game"
+        self.menu_manager.disable_menu()
+    
+    def _handle_main_menu(self):
+        """Handle main menu action."""
+        self.menu_manager.set_menu_state(MenuState.START_MENU)
+        self.current_screen = "menu"
+        self.menu_manager.enable_menu()
+    
+    def _handle_resume(self):
+        """Handle resume menu action."""
+        self.game_controller.resume_game()
+        self.current_screen = "game"
+        self.menu_manager.disable_menu()
+    
+    def _handle_restart(self):
+        """Handle restart menu action."""
+        self.game_controller.restart_game()
+        self.current_screen = "game"
+        self.menu_manager.disable_menu()
+    
+    def _handle_back(self):
+        """Handle back menu action."""
+        if self.menu_manager.get_current_state() == MenuState.SETTINGS_MENU:
+            self.menu_manager.set_menu_state(MenuState.START_MENU)
+        elif self.menu_manager.get_current_state() == MenuState.DIFFICULTY_SELECTION:
+            self.menu_manager.set_menu_state(MenuState.SETTINGS_MENU)
+    
+    def _handle_difficulty_level(self):
+        """Handle difficulty level menu action."""
+        self.menu_manager.set_menu_state(MenuState.DIFFICULTY_SELECTION)
+    
+    def _handle_difficulty_easy(self):
+        """Handle easy difficulty selection."""
+        self.game_logic.set_difficulty("easy")
+        self.menu_manager.set_menu_state(MenuState.SETTINGS_MENU)
+    
+    def _handle_difficulty_medium(self):
+        """Handle medium difficulty selection."""
+        self.game_logic.set_difficulty("medium")
+        self.menu_manager.set_menu_state(MenuState.SETTINGS_MENU)
+    
+    def _handle_difficulty_hard(self):
+        """Handle hard difficulty selection."""
+        self.game_logic.set_difficulty("hard")
+        self.menu_manager.set_menu_state(MenuState.SETTINGS_MENU)
+    
     def pause(self):
         """Pause the game."""
         self.paused = True
         self.game_controller.pause_game()
+        self.current_screen = "pause"
+        self.menu_manager.set_menu_state(MenuState.PAUSE_MENU)
+        self.menu_manager.enable_menu()
     
     def resume(self):
         """Resume the game."""
         self.paused = False
         self.game_controller.resume_game()
+        self.current_screen = "game"
+        self.menu_manager.disable_menu()
     
     def restart(self):
         """Restart the game."""
         self.game_controller.restart_game()
         self.current_screen = "game"
+        self.menu_manager.disable_menu()
     
     def set_control_scheme(self, scheme: ControlScheme):
         """Change the control scheme."""

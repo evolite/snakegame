@@ -6,9 +6,11 @@ This module provides specialized rendering for the snake with:
 - Smooth animations
 - Segment styling
 - Growth animations
+- Movement wave effects
 """
 
 import pygame
+import math
 from typing import List, Tuple, Dict
 from ..game.grid import Position
 from ..game.snake import Snake
@@ -66,10 +68,21 @@ class SnakeRenderer:
         self.animation_timer = 0.0
         self.animation_speed = 2.0  # seconds per cycle
         
+        # Movement animation properties
+        self.movement_timer = 0.0
+        self.movement_speed = 8.0  # waves per second
+        self.wave_amplitude = 2.0  # pixels
+        
+        # Growth animation properties
+        self.growth_animations = {}  # segment_id -> animation_data
+        self.growth_duration = 0.5  # seconds
+        
         # Special effects
         self.glow_effect = True
         self.shadow_effect = True
         self.segment_rounding = True
+        self.wave_effect = True
+        self.growth_effect = True
     
     def set_color_scheme(self, scheme_name: str) -> None:
         """Set the snake color scheme."""
@@ -88,12 +101,17 @@ class SnakeRenderer:
             snake: The snake to render
             delta_time: Time elapsed since last frame
         """
-        # Update animation timer
+        # Update animation timers
         self.animation_timer += delta_time
+        self.movement_timer += delta_time
+        
         if self.animation_timer > self.animation_speed:
             self.animation_timer = 0.0
         
         body = snake.get_body()
+        
+        # Update growth animations
+        self._update_growth_animations(delta_time)
         
         # Render each segment
         for i, segment in enumerate(body):
@@ -104,10 +122,37 @@ class SnakeRenderer:
             else:
                 self._render_snake_body(segment, i, len(body))
     
+    def _update_growth_animations(self, delta_time: float) -> None:
+        """Update growth animations for all segments."""
+        completed_animations = []
+        
+        for segment_id, animation_data in self.growth_animations.items():
+            animation_data['elapsed'] += delta_time
+            if animation_data['elapsed'] >= animation_data['duration']:
+                completed_animations.append(segment_id)
+        
+        # Remove completed animations
+        for segment_id in completed_animations:
+            del self.growth_animations[segment_id]
+    
+    def add_growth_animation(self, segment_id: str, position: Position) -> None:
+        """Add a growth animation for a new segment."""
+        self.growth_animations[segment_id] = {
+            'position': position,
+            'elapsed': 0.0,
+            'duration': self.growth_duration,
+            'initial_scale': 0.0,
+            'target_scale': 1.0
+        }
+    
     def _render_snake_head(self, position: Position, snake: Snake) -> None:
         """Render the snake's head with special effects."""
         colors = self.get_current_colors()
         rect = self.display.get_grid_rect(position.x, position.y)
+        
+        # Apply movement wave effect
+        if self.wave_effect:
+            rect.y += self._calculate_wave_offset(0, self.movement_timer)
         
         # Draw shadow if enabled
         if self.shadow_effect:
@@ -138,7 +183,7 @@ class SnakeRenderer:
         eye_offset = self.cell_size // 4
         
         # Animate eye size based on timer
-        animation_factor = (pygame.math.sin(self.animation_timer * 10) + 1) / 2
+        animation_factor = (math.sin(self.animation_timer * 10) + 1) / 2
         eye_size = int(eye_size * (0.8 + 0.2 * animation_factor))
         
         # Left eye
@@ -164,7 +209,7 @@ class SnakeRenderer:
         )
         
         # Animate tongue length
-        animation_factor = (pygame.math.sin(self.animation_timer * 15) + 1) / 2
+        animation_factor = (math.sin(self.animation_timer * 15) + 1) / 2
         tongue_length = int(self.cell_size // 4 * (0.5 + 0.5 * animation_factor))
         
         # Calculate final tongue end
@@ -187,6 +232,15 @@ class SnakeRenderer:
         colors = self.get_current_colors()
         rect = self.display.get_grid_rect(position.x, position.y)
         
+        # Apply movement wave effect
+        if self.wave_effect:
+            rect.y += self._calculate_wave_offset(segment_index, self.movement_timer)
+        
+        # Check for growth animation
+        growth_scale = self._get_growth_scale(position)
+        if growth_scale != 1.0:
+            rect = self._scale_rect(rect, growth_scale)
+        
         # Calculate segment color variation
         color_variation = self._calculate_segment_color_variation(segment_index, total_segments)
         segment_color = self._blend_colors(colors['body'], colors['highlight'], color_variation)
@@ -205,13 +259,22 @@ class SnakeRenderer:
             self.display.draw_rect(rect, segment_color, True)
             self.display.draw_rect(rect, colors['outline'], False, 1)
         
-        # Add segment pattern
-        self._render_segment_pattern(rect, segment_index)
+        # Add segment-specific effects
+        self._add_segment_effects(rect, segment_index, total_segments)
     
     def _render_snake_tail(self, position: Position, segment_index: int) -> None:
-        """Render the snake's tail segment."""
+        """Render the snake's tail with special effects."""
         colors = self.get_current_colors()
         rect = self.display.get_grid_rect(position.x, position.y)
+        
+        # Apply movement wave effect
+        if self.wave_effect:
+            rect.y += self._calculate_wave_offset(segment_index, self.movement_timer)
+        
+        # Check for growth animation
+        growth_scale = self._get_growth_scale(position)
+        if growth_scale != 1.0:
+            rect = self._scale_rect(rect, growth_scale)
         
         # Draw shadow if enabled
         if self.shadow_effect:
@@ -222,188 +285,139 @@ class SnakeRenderer:
         
         # Draw tail with special styling
         self.display.draw_rect(rect, colors['tail'], True)
-        self.display.draw_rect(rect, colors['outline'], False, 1)
+        self.display.draw_rect(rect, colors['outline'], False, 2)
         
-        # Add tail pattern
-        self._render_tail_pattern(rect)
+        # Add tail-specific effects
+        self._add_tail_effects(rect)
     
-    def _render_rounded_segment(self, rect: pygame.Rect, color: str, outline_color: str) -> None:
+    def _calculate_wave_offset(self, segment_index: int, time: float) -> float:
+        """Calculate wave offset for a segment based on its position and time."""
+        if not self.wave_effect:
+            return 0.0
+        
+        # Create a wave that propagates along the snake
+        wave_phase = time * self.movement_speed - segment_index * 0.5
+        return math.sin(wave_phase) * self.wave_amplitude
+    
+    def _get_growth_scale(self, position: Position) -> float:
+        """Get the growth scale for a segment at the given position."""
+        for animation_data in self.growth_animations.values():
+            if (animation_data['position'].x == position.x and 
+                animation_data['position'].y == position.y):
+                progress = animation_data['elapsed'] / animation_data['duration']
+                return animation_data['initial_scale'] + (animation_data['target_scale'] - animation_data['initial_scale']) * progress
+        
+        return 1.0
+    
+    def _scale_rect(self, rect: pygame.Rect, scale: float) -> pygame.Rect:
+        """Scale a rectangle from its center."""
+        scaled_rect = rect.copy()
+        scaled_rect.width = int(rect.width * scale)
+        scaled_rect.height = int(rect.height * scale)
+        scaled_rect.center = rect.center
+        return scaled_rect
+    
+    def _render_rounded_segment(self, rect: pygame.Rect, fill_color: str, outline_color: str) -> None:
         """Render a segment with rounded corners."""
-        # For simplicity, we'll use a filled rectangle with rounded corners
-        # In a more advanced implementation, you could use pygame.draw.ellipse for corners
-        
-        # Main segment
-        self.display.draw_rect(rect, color, True)
-        
-        # Outline
+        # For now, use regular rectangle with outline
+        # In a more advanced implementation, we could use pygame.draw.rect with border_radius
+        self.display.draw_rect(rect, fill_color, True)
         self.display.draw_rect(rect, outline_color, False, 1)
-        
-        # Add subtle inner highlight
-        inner_rect = rect.inflate(-2, -2)
-        highlight_color = self._lighten_color(color, 0.3)
-        self.display.draw_rect(inner_rect, highlight_color, False, 1)
     
-    def _render_segment_pattern(self, rect: pygame.Rect, segment_index: int) -> None:
-        """Render a pattern on the body segment."""
-        # Create a subtle pattern based on segment index
-        pattern_type = segment_index % 4
-        
-        if pattern_type == 0:
-            # Dots pattern
-            center = rect.center
-            dot_size = 1
-            self.display.draw_circle(center, dot_size, 'dark_gray')
-        elif pattern_type == 1:
-            # Lines pattern
-            center = rect.center
-            line_length = self.cell_size // 6
-            start_pos = (center[0] - line_length, center[1])
-            end_pos = (center[0] + line_length, center[1])
-            self.display.draw_line(start_pos, end_pos, 'dark_gray', 1)
-        elif pattern_type == 2:
-            # Cross pattern
-            center = rect.center
-            line_length = self.cell_size // 6
-            # Horizontal line
-            h_start = (center[0] - line_length, center[1])
-            h_end = (center[0] + line_length, center[1])
-            self.display.draw_line(h_start, h_end, 'dark_gray', 1)
-            # Vertical line
-            v_start = (center[0], center[1] - line_length)
-            v_end = (center[0], center[1] + line_length)
-            self.display.draw_line(v_start, v_end, 'dark_gray', 1)
+    def _add_segment_effects(self, rect: pygame.Rect, segment_index: int, total_segments: int) -> None:
+        """Add special effects to body segments."""
+        # Add subtle glow effect to middle segments
+        if segment_index > 0 and segment_index < total_segments - 1:
+            if self.glow_effect:
+                self._add_subtle_glow(rect, 'white', 0.3)
     
-    def _render_tail_pattern(self, rect: pygame.Rect) -> None:
-        """Render a special pattern on the tail segment."""
-        center = rect.center
+    def _add_tail_effects(self, rect: pygame.Rect) -> None:
+        """Add special effects to the tail segment."""
+        # Add a subtle pulse effect
+        pulse_factor = (math.sin(self.animation_timer * 8) + 1) / 2
+        pulse_alpha = int(100 * pulse_factor)
         
-        # Draw a small triangle pointing outward
-        triangle_size = self.cell_size // 8
-        points = [
-            (center[0], center[1] - triangle_size),
-            (center[0] - triangle_size, center[1] + triangle_size),
-            (center[0] + triangle_size, center[1] + triangle_size)
-        ]
+        if pulse_alpha > 0:
+            # Create a subtle glow around the tail
+            glow_rect = rect.inflate(4, 4)
+            glow_surface = pygame.Surface(glow_rect.size, pygame.SRCALPHA)
+            pygame.draw.rect(glow_surface, (255, 255, 255, pulse_alpha), glow_surface.get_rect())
+            self.display.screen.blit(glow_surface, glow_rect)
+    
+    def _add_glow_effect(self, rect: pygame.Rect, color: str) -> None:
+        """Add a glow effect around the given rectangle."""
+        if not self.glow_effect:
+            return
         
-        self.display.draw_polygon(points, 'dark_gray')
+        # Create a larger rectangle for the glow
+        glow_rect = rect.inflate(8, 8)
+        glow_surface = pygame.Surface(glow_rect.size, pygame.SRCALPHA)
+        
+        # Draw multiple layers for glow effect
+        for i in range(3):
+            alpha = 50 - i * 15
+            if alpha > 0:
+                glow_color = self.display.get_color(color)
+                glow_color = (*glow_color, alpha)
+                pygame.draw.rect(glow_surface, glow_color, glow_surface.get_rect(), border_radius=2)
+        
+        self.display.screen.blit(glow_surface, glow_rect)
+    
+    def _add_subtle_glow(self, rect: pygame.Rect, color: str, intensity: float) -> None:
+        """Add a subtle glow effect."""
+        if not self.glow_effect:
+            return
+        
+        glow_rect = rect.inflate(4, 4)
+        glow_surface = pygame.Surface(glow_rect.size, pygame.SRCALPHA)
+        
+        alpha = int(50 * intensity)
+        if alpha > 0:
+            glow_color = self.display.get_color(color)
+            glow_color = (*glow_color, alpha)
+            pygame.draw.rect(glow_surface, glow_color, glow_surface.get_rect())
+            self.display.screen.blit(glow_surface, glow_rect)
     
     def _calculate_segment_color_variation(self, segment_index: int, total_segments: int) -> float:
         """Calculate color variation for a segment."""
-        # Create a wave pattern based on segment position
-        wave = pygame.math.sin(segment_index * 0.5 + self.animation_timer * 2)
-        return (wave + 1) / 2  # Normalize to 0-1 range
+        if total_segments <= 1:
+            return 0.0
+        
+        # Create a wave pattern along the snake
+        normalized_position = segment_index / (total_segments - 1)
+        wave = math.sin(normalized_position * math.pi * 2 + self.animation_timer * 3)
+        return (wave + 1) / 2  # Normalize to 0-1
     
     def _blend_colors(self, color1: str, color2: str, factor: float) -> str:
-        """Blend two colors based on a factor."""
-        # For simplicity, return the first color
-        # In a full implementation, you'd blend the RGB values
-        return color1
+        """Blend two colors based on a factor (0-1)."""
+        # For now, return the first color
+        # In a more advanced implementation, we could blend RGB values
+        return color1 if factor < 0.5 else color2
     
-    def _lighten_color(self, color: str, factor: float) -> str:
-        """Lighten a color by a factor."""
-        # For simplicity, return a lighter variant
-        # In a full implementation, you'd adjust the RGB values
-        if color == 'green':
-            return 'lime'
-        elif color == 'blue':
-            return 'cyan'
-        elif color == 'red':
-            return 'pink'
-        else:
-            return color
+    def set_wave_effect(self, enabled: bool) -> None:
+        """Enable or disable the wave effect."""
+        self.wave_effect = enabled
     
-    def _add_glow_effect(self, rect: pygame.Rect, color: str) -> None:
-        """Add a glow effect around the element."""
-        # Create a larger, semi-transparent version for glow
-        glow_rect = rect.inflate(4, 4)
-        
-        # Create glow surface
-        glow_surface = pygame.Surface(glow_rect.size)
-        glow_surface.set_alpha(64)
-        glow_surface.fill(self.display.get_color(color))
-        
-        # Draw glow
-        self.display.screen.blit(glow_surface, glow_rect)
+    def set_growth_effect(self, enabled: bool) -> None:
+        """Enable or disable the growth effect."""
+        self.growth_effect = enabled
     
-    def render_growth_animation(self, position: Position, animation_progress: float) -> None:
-        """
-        Render a growth animation at a specific position.
-        
-        Args:
-            position: Position where growth occurs
-            animation_progress: Animation progress (0.0 to 1.0)
-        """
-        colors = self.get_current_colors()
-        rect = self.display.get_grid_rect(position.x, position.y)
-        
-        # Scale the segment based on animation progress
-        scaled_rect = rect.inflate(
-            int(rect.width * animation_progress),
-            int(rect.height * animation_progress)
-        )
-        
-        # Center the scaled rect
-        scaled_rect.center = rect.center
-        
-        # Draw growing segment
-        self.display.draw_rect(scaled_rect, colors['body'], True)
-        self.display.draw_rect(scaled_rect, colors['outline'], False, 2)
-        
-        # Add sparkle effect
-        if animation_progress > 0.5:
-            sparkle_alpha = int(255 * (1.0 - animation_progress))
-            sparkle_surface = pygame.Surface(rect.size)
-            sparkle_surface.set_alpha(sparkle_alpha)
-            sparkle_surface.fill(self.display.get_color('yellow'))
-            self.display.screen.blit(sparkle_surface, rect)
+    def set_glow_effect(self, enabled: bool) -> None:
+        """Enable or disable the glow effect."""
+        self.glow_effect = enabled
     
-    def render_death_animation(self, snake: Snake, animation_progress: float) -> None:
-        """
-        Render a death animation for the snake.
-        
-        Args:
-            snake: The snake to animate
-            animation_progress: Animation progress (0.0 to 1.0)
-        """
-        body = snake.get_body()
-        
-        for i, segment in enumerate(body):
-            # Calculate segment fade based on position and progress
-            segment_fade = max(0, 1.0 - animation_progress - (i * 0.1))
-            
-            if segment_fade > 0:
-                # Create faded surface
-                segment_surface = pygame.Surface((self.cell_size, self.cell_size))
-                segment_surface.set_alpha(int(255 * segment_fade))
-                
-                # Fill with segment color
-                colors = self.get_current_colors()
-                if i == 0:
-                    color = colors['head']
-                elif i == len(body) - 1:
-                    color = colors['tail']
-                else:
-                    color = colors['body']
-                
-                segment_surface.fill(self.display.get_color(color))
-                
-                # Draw to screen
-                rect = self.display.get_grid_rect(segment.x, segment.y)
-                self.display.screen.blit(segment_surface, rect)
+    def set_shadow_effect(self, enabled: bool) -> None:
+        """Enable or disable the shadow effect."""
+        self.shadow_effect = enabled
     
-    def get_available_color_schemes(self) -> List[str]:
-        """Get list of available color schemes."""
-        return list(self.color_schemes.keys())
+    def set_animation_speed(self, speed: float) -> None:
+        """Set the animation speed multiplier."""
+        self.animation_speed = speed
     
-    def create_custom_color_scheme(self, name: str, colors: Dict[str, str]) -> None:
-        """Create a custom color scheme."""
-        self.color_schemes[name] = colors.copy()
+    def set_movement_speed(self, speed: float) -> None:
+        """Set the movement wave speed."""
+        self.movement_speed = speed
     
-    def set_effects(self, glow: bool = None, shadow: bool = None, rounding: bool = None) -> None:
-        """Set visual effects."""
-        if glow is not None:
-            self.glow_effect = glow
-        if shadow is not None:
-            self.shadow_effect = shadow
-        if rounding is not None:
-            self.segment_rounding = rounding
+    def set_wave_amplitude(self, amplitude: float) -> None:
+        """Set the wave amplitude in pixels."""
+        self.wave_amplitude = amplitude
