@@ -630,7 +630,7 @@ class GameLogic:
     
     def get_current_score_multiplier(self) -> float:
         """Get the current score multiplier including power-up effects."""
-        base_multiplier = self.scoring_system.score_multiplier.get_multiplier()
+        base_multiplier = self.scoring_system.score_multiplier.get_total_multiplier()
         power_up_multiplier = self.power_ups_manager.get_score_multiplier()
         return base_multiplier * power_up_multiplier
     

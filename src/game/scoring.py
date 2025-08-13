@@ -310,6 +310,10 @@ class ScoringSystem:
         """Get the list of high scores, limited to specified count."""
         return self.high_scores[:limit]
     
+    def get_high_scores(self, limit: int = 10) -> List[HighScore]:
+        """Get a list of high scores, limited to the specified number (alias for get_high_scores_list)."""
+        return self.get_high_scores_list(limit)
+    
     def clear_high_scores(self) -> None:
         """Clear all high scores."""
         self.high_scores.clear()

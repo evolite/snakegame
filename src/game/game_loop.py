@@ -126,14 +126,27 @@ class GameLoop:
         """Update physics at fixed timestep (called from main game loop)."""
         if not self.running or self.paused:
             return
-            
-        # Update physics timer
-        self.physics_timer += self.delta_time
-        
-        # Run physics updates at fixed timestep
-        while self.physics_timer >= self.physics_frame_time:
-            self.game_logic.physics_update(self.physics_frame_time)
-            self.physics_timer -= self.physics_frame_time
+
+        # Use accumulator/timestep if available (FixedTimestepGameLoop),
+        # otherwise fall back to target frame timing.
+        physics_accumulator = getattr(self, "physics_accumulator", 0.0) + self.delta_time
+        physics_timestep = getattr(self, "physics_timestep", self.target_frame_time)
+
+        # Step physics in fixed increments
+        while physics_accumulator >= physics_timestep:
+            # Prefer callback if provided (FixedTimestepGameLoop)
+            physics_cb = getattr(self, "physics_update_callback", None)
+            if physics_cb:
+                physics_cb(physics_timestep)
+
+            # Advance game logic at fixed timestep
+            self.game_logic.update(physics_timestep)
+
+            physics_accumulator -= physics_timestep
+
+        # Persist accumulator back if attribute exists
+        if hasattr(self, "physics_accumulator"):
+            self.physics_accumulator = physics_accumulator
     
     def _run_loop(self) -> None:
         """Main game loop."""

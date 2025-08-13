@@ -423,3 +423,13 @@ class PowerUpsManager:
     def set_spawn_frequency_multiplier(self, multiplier: float) -> None:
         """Set the spawn frequency multiplier for game mode configuration."""
         self.spawn_frequency_multiplier = max(0.1, min(multiplier, 5.0))  # Clamp between 0.1x and 5x
+    
+    def reset(self) -> None:
+        """Reset the power-ups manager to initial state."""
+        self.clear_all_power_ups()
+        self.effect_multipliers = {
+            'speed': 1.0,
+            'score': 1.0,
+            'growth': 1.0
+        }
+        self.spawn_frequency_multiplier = 1.0

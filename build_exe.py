@@ -32,7 +32,12 @@ def clean_build_dirs():
     for dir_name in dirs_to_clean:
         if os.path.exists(dir_name):
             print(f"Cleaning {dir_name}...")
-            shutil.rmtree(dir_name)
+            try:
+                shutil.rmtree(dir_name)
+            except PermissionError:
+                print(f"Warning: could not remove '{dir_name}' (in use). Skipping.")
+            except OSError as e:
+                print(f"Warning: failed to remove '{dir_name}': {e}. Skipping.")
     
     # Clean .spec files (except our main one)
     for spec_file in Path('.').glob('*.spec'):
@@ -53,6 +58,7 @@ def build_executable():
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--clean",
+        "--noconfirm",
         "snake_game.spec"
     ]
     

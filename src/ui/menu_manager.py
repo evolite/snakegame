@@ -209,6 +209,10 @@ class MenuManager:
         """Register a callback for a menu action."""
         self.menu_callbacks[action] = callback
     
+    def set_menu_callback(self, action: str, callback: Callable):
+        """Set a callback for a specific menu action (alias for register_callback)."""
+        self.register_callback(action, callback)
+    
     def unregister_callback(self, action: str):
         """Unregister a callback for a menu action."""
         if action in self.menu_callbacks:

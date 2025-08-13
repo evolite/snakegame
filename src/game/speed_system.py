@@ -416,3 +416,23 @@ class SpeedProgressionSystem:
             return "Hard"
         else:
             return "Extreme"
+    
+    def apply_temporary_boost(self, multiplier: float, duration: float) -> None:
+        """Apply a temporary speed boost."""
+        # This would need to be implemented with temporary boost logic
+        # For now, just set the speed multiplier
+        self.speed_multiplier = multiplier
+    
+    def set_initial_speed(self, speed: float) -> None:
+        """Set the initial speed."""
+        self.config.initial_speed = max(0.1, speed)
+        if not self.speed_enabled:
+            self.speed_state.current_speed = self.config.initial_speed
+    
+    def set_max_speed(self, speed: float) -> None:
+        """Set the maximum speed."""
+        self.config.max_speed = max(self.config.initial_speed, speed)
+    
+    def set_base_increase(self, increase: float) -> None:
+        """Set the base speed increase rate."""
+        self.config.base_increase = max(0.0, increase)

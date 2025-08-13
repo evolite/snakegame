@@ -683,3 +683,10 @@ class ObstacleManager:
     def set_obstacle_density(self, density: float) -> None:
         """Set the obstacle density (0.0 to 1.0)."""
         self.obstacle_density = max(0.0, min(1.0, density))
+    
+    def reset(self) -> None:
+        """Reset the obstacle manager to initial state."""
+        self.clear_all_obstacles()
+        self.obstacle_spawn_timer = 0.0
+        self.spawn_count = 0
+        self.destroyed_count = 0

@@ -180,9 +180,7 @@ class SnakeGame:
                 # Update game loop
                 self.game_loop.update()
                 
-                # Check if game should continue
-                if not self.game_controller.game_running:
-                    self.running = False
+                # Keep running while in menu or game until user quits
                     
         except KeyboardInterrupt:
             print("Game interrupted by user")
@@ -488,6 +486,10 @@ class SnakeGame:
         self.menu_manager.set_menu_state(MenuState.START_MENU)
         self.current_screen = "menu"
         print("Selected Speed Mode")
+    
+    def get_current_screen(self) -> str:
+        """Get the current screen."""
+        return self.current_screen
 
 
 def main():

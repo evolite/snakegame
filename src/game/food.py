@@ -295,6 +295,10 @@ class Food:
         """Get the type of effect this food provides."""
         return self.food_type
     
+    def get_food_type(self) -> FoodType:
+        """Get the food type."""
+        return self.food_type
+    
     def has_temporary_effect(self) -> bool:
         """Check if this food has a temporary effect."""
         return self.properties.duration > 0.0
@@ -633,3 +637,7 @@ class EnhancedFoodManager:
                 "remaining_time": 0.0,
                 "total_duration": self.special_event_duration
             }
+    
+    def get_food_list(self) -> List[Food]:
+        """Get a list of all active food items."""
+        return [food for food in self.active_food if not food.is_collected()]

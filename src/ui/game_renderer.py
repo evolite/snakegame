@@ -370,7 +370,7 @@ class GameRenderer:
                              self.display.font, self.hud_text_color)
         
         # Difficulty display
-        difficulty_text = f"Difficulty: {self.current_difficulty}"
+        difficulty_text = f"Difficulty: {current_difficulty}"
         self.display.draw_text(difficulty_text, (500, hud_y + 35), 
                              self.display.font, self.hud_text_color)
         
