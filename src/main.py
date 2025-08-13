@@ -163,6 +163,7 @@ class SnakeGame:
         # Play main menu music
         self.audio_manager.play_background_music(BackgroundMusic.MAIN_MENU)
         
+        # Initialize game loop (but don't start its internal loop)
         self.game_loop.start()
         
         # Main game loop
@@ -180,7 +181,14 @@ class SnakeGame:
                 # Update game loop
                 self.game_loop.update()
                 
-                # Keep running while in menu or game until user quits
+                # Physics update at fixed timestep
+                self.game_loop.physics_update(self.game_loop.delta_time)
+                
+                # Render the game
+                self.render()
+                
+                # Frame rate limiting
+                pygame.time.Clock().tick(60)
                     
         except KeyboardInterrupt:
             print("Game interrupted by user")
@@ -415,6 +423,10 @@ class SnakeGame:
         # Quit Pygame
         pygame.quit()
         
+        # Force exit to ensure no hanging processes
+        import sys
+        sys.exit(0)
+        
         print("Game cleaned up successfully")
     
     def get_game_stats(self):
@@ -495,6 +507,44 @@ class SnakeGame:
 def main():
     """Main entry point for the Snake Game."""
     print("Snake Game - Starting up...")
+    
+    # Set up signal handlers for graceful shutdown
+    import signal
+    import os
+    
+    def signal_handler(signum, frame):
+        print(f"\nReceived signal {signum}, shutting down gracefully...")
+        if 'game' in locals():
+            game.cleanup()
+        sys.exit(0)
+    
+    # Register signal handlers (Unix-like systems)
+    if hasattr(signal, 'SIGINT'):
+        signal.signal(signal.SIGINT, signal_handler)
+    if hasattr(signal, 'SIGTERM'):
+        signal.signal(signal.SIGTERM, signal_handler)
+    
+    # Windows-specific process termination handling
+    if os.name == 'nt':
+        import ctypes
+        from ctypes import wintypes
+        
+        def windows_handler(ctrl_type):
+            if ctrl_type in (2, 3):  # CTRL_C_EVENT or CTRL_BREAK_EVENT
+                print("\nReceived Windows termination signal, shutting down gracefully...")
+                if 'game' in locals():
+                    game.cleanup()
+                sys.exit(0)
+            return True
+        
+        try:
+            kernel32 = ctypes.windll.kernel32
+            kernel32.SetConsoleCtrlHandler(
+                ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.DWORD)(windows_handler), 
+                True
+            )
+        except Exception as e:
+            print(f"Warning: Could not set Windows console handler: {e}")
     
     try:
         # Import check
