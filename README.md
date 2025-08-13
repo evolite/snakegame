@@ -27,6 +27,14 @@ A modern, feature-rich Snake game built with Python and Pygame, featuring smooth
 - **Storage**: 100MB available disk space
 - **Display**: 1024x768 minimum resolution (1920x1080 recommended)
 
+### 🎯 Two Ways to Run
+
+#### Option 1: Python Script (Development)
+Run the game directly with Python (requires Python installation)
+
+#### Option 2: Executable (.exe) (Distribution)
+Run the standalone executable (no Python required)
+
 ### Prerequisites
 
 - Python 3.8+ with pip package manager
@@ -75,6 +83,36 @@ python -m pytest tests/ -v
 ```bash
 python src/main.py
 ```
+
+## 📦 Creating Executable (.exe)
+
+### Quick Build (Windows)
+```bash
+# Double-click the batch file
+build_exe.bat
+```
+
+### Manual Build
+```bash
+# Install PyInstaller
+pip install pyinstaller
+
+# Build executable
+python build_exe.py
+
+# Or use PyInstaller directly
+pyinstaller snake_game.spec
+```
+
+### Build Output
+After successful build, you'll find:
+- **Executable**: `dist/SnakeGame/SnakeGame.exe`
+- **Distribution Folder**: `dist/SnakeGame/` (contains everything needed)
+
+### Running the Executable
+- **Double-click** `SnakeGame.exe` to run
+- **No Python installation required** on target machine
+- **Portable**: Copy the entire `dist/SnakeGame` folder to any Windows machine
 
 ## 🎯 Game Controls
 
