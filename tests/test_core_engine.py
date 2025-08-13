@@ -9,7 +9,7 @@ from src.game.game_state import GameState, GameStatus, GameConfig
 from src.game.grid import Grid, Position
 from src.game.grid import Direction
 from src.game.snake import Snake
-from src.game.food import FoodManager, Food, FoodType
+from src.game.food import EnhancedFoodManager, Food, FoodType
 from src.game.collision import CollisionDetector
 from src.game.scoring import ScoringSystem
 from src.game.game_logic import GameLogic
@@ -138,7 +138,7 @@ class TestFoodManager:
     def test_food_spawning(self):
         """Test food spawning."""
         grid = Grid(10, 10)
-        manager = FoodManager(grid)
+        manager = EnhancedFoodManager(grid)
         
         food = manager.spawn_food(force_normal=True)
         assert food is not None
