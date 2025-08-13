@@ -77,6 +77,22 @@ class GameLogic:
         # Initialize game
         self._initialize_game()
     
+    def is_game_active(self) -> bool:
+        """Check if the game is currently active (not game over)."""
+        return self.game_state.is_game_active()
+    
+    def is_game_paused(self) -> bool:
+        """Check if the game is currently paused."""
+        return self.game_state.status == GameStatus.PAUSED
+    
+    def restart_game(self) -> None:
+        """Restart the game with fresh state."""
+        self._initialize_game()
+        self.game_state.reset_game()
+        self.scoring_system.reset_score()
+        self.speed_system.reset_speed()
+        # Note: power_ups_manager and obstacle_manager don't have reset methods yet
+    
     def _initialize_game(self) -> None:
         """Initialize the game state and systems."""
         # Clear grid
@@ -586,6 +602,10 @@ class GameLogic:
         """Get the snake instance."""
         return self.snake
     
+    def get_snake_body(self) -> List[Position]:
+        """Get the snake's body positions."""
+        return self.snake.get_body()
+    
     def get_food_manager(self) -> EnhancedFoodManager:
         """Get the enhanced food manager."""
         return self.food_manager
@@ -796,4 +816,18 @@ class GameLogic:
             'description': self.difficulty_manager.get_difficulty_description(current_difficulty),
             'color': self.difficulty_manager.get_difficulty_color(current_difficulty),
             'icon': self.difficulty_manager.get_difficulty_icon(current_difficulty)
+        }
+    
+    def get_game_stats(self) -> Dict[str, Any]:
+        """Get comprehensive game statistics."""
+        return {
+            'score': self.get_score(),
+            'high_score': self.get_high_score(),
+            'level': self.get_level(),
+            'food_eaten': self.get_food_eaten(),
+            'game_time': self.get_game_time(),
+            'difficulty': self.get_current_difficulty(),
+            'snake_length': len(self.snake.get_body()),
+            'current_speed': self.get_current_speed(),
+            'score_multiplier': self.get_current_score_multiplier()
         }
